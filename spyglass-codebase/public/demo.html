@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spyglass - Preparing Your Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0b0f;
+            --surface: #12141a;
+            --border: #1e2028;
+            --amber: #e8a230;
+            --amber-dim: #c4882a;
+            --text: #e8e6e1;
+            --text-dim: #8a8b8e;
+            --text-bright: #ffffff;
+            --red: #e05252;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            max-width: 480px;
+            padding: 40px;
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-bright);
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 48px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border: 2px solid var(--amber);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: var(--amber);
+        }
+
+        /* Loading State */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .loading-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-bright);
+            line-height: 1.4;
+        }
+
+        .loading-subtitle {
+            font-size: 15px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        .progress-ring {
+            width: 56px;
+            height: 56px;
+            position: relative;
+        }
+
+        .progress-ring svg {
+            animation: spin 1.2s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        .progress-ring .track {
+            stroke: var(--border);
+        }
+
+        .progress-ring .fill {
+            stroke: var(--amber);
+            stroke-dasharray: 120;
+            stroke-dashoffset: 80;
+        }
+
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-align: left;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: var(--text-dim);
+            transition: color 0.3s;
+        }
+
+        .step.active {
+            color: var(--text);
+        }
+
+        .step.done {
+            color: var(--amber);
+        }
+
+        .step-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--border);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .step.active .step-dot {
+            background: var(--amber);
+            box-shadow: 0 0 8px rgba(232, 162, 48, 0.4);
+        }
+
+        .step.done .step-dot {
+            background: var(--amber);
+        }
+
+        /* Error State */
+        .error-state {
+            display: none;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 24px;
+            opacity: 0.6;
+        }
+
+        .error-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-bright);
+            margin-bottom: 12px;
+        }
+
+        .error-desc {
+            font-size: 15px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+
+        .btn-primary {
+            display: inline-block;
+            padding: 14px 32px;
+            background: var(--amber);
+            color: var(--bg);
+            border: none;
+            border-radius: 8px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: var(--amber-dim);
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+    <div class="container">
+        <div class="logo">
+            <div class="logo-icon">&#9678;</div>
+            Spyglass
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-state" id="loadingState">
+            <div class="progress-ring">
+                <svg width="56" height="56" viewBox="0 0 56 56">
+                    <circle class="track" cx="28" cy="28" r="24" />
+                    <circle class="fill" cx="28" cy="28" r="24" />
+                </svg>
+            </div>
+            <div>
+                <div class="loading-title">Preparing your intelligence dashboard</div>
+                <div class="loading-subtitle" style="margin-top:8px;">This only takes a moment.</div>
+            </div>
+            <div class="steps">
+                <div class="step active" id="step1">
+                    <div class="step-dot"></div>
+                    <span>Validating access...</span>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-dot"></div>
+                    <span>Loading competitor data</span>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-dot"></div>
+                    <span>Preparing intelligence brief</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div class="error-state" id="errorState">
+            <div class="error-icon">&#128274;</div>
+            <div class="error-title" id="errorTitle">Link expired</div>
+            <div class="error-desc" id="errorDesc">This magic link is no longer valid. Contact the team for a new one.</div>
+            <a href="/" class="btn-primary">Go to Spyglass</a>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        var token = params.get('token');
+
+        if (!token) {
+            showError('No access token', 'This link appears to be incomplete. Make sure you copied the full URL.');
+            return;
+        }
+
+        // Step 1: Validate access
+        animateStep('step1', 'active');
+
+        fetch('/api/auth/magic', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: token })
+        })
+        .then(function(res) {
+            return res.json().then(function(data) {
+                return { ok: res.ok, data: data };
+            });
+        })
+        .then(function(result) {
+            if (!result.ok || result.data.error) {
+                throw new Error(result.data.error || 'Invalid or expired link');
+            }
+
+            // Step 1 done
+            animateStep('step1', 'done');
+            animateStep('step2', 'active');
+
+            // Store the auth token
+            localStorage.setItem('token', result.data.token);
+
+            // Simulate loading progress for visual effect
+            setTimeout(function() {
+                animateStep('step2', 'done');
+                animateStep('step3', 'active');
+
+                setTimeout(function() {
+                    animateStep('step3', 'done');
+
+                    // Redirect to dashboard
+                    setTimeout(function() {
+                        window.location.href = '/dashboard';
+                    }, 400);
+                }, 600);
+            }, 800);
+        })
+        .catch(function(err) {
+            showError('Link expired or invalid', err.message || 'This magic link is no longer valid. Contact the team for a new one.');
+        });
+
+        function animateStep(stepId, state) {
+            var el = document.getElementById(stepId);
+            el.className = 'step ' + state;
+        }
+
+        function showError(title, desc) {
+            document.getElementById('loadingState').style.display = 'none';
+            var errorState = document.getElementById('errorState');
+            errorState.style.display = 'block';
+            document.getElementById('errorTitle').textContent = title;
+            document.getElementById('errorDesc').textContent = desc;
+        }
+    })();
+    </script>
+</body>
+</html>

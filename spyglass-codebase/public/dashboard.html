@@ -1,0 +1,3084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spyglass - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0b0f;
+            --surface: #12141a;
+            --border: #1e2028;
+            --amber: #e8a230;
+            --amber-dim: #c4882a;
+            --amber-bg: rgba(232, 162, 48, 0.08);
+            --amber-bg-hover: rgba(232, 162, 48, 0.12);
+            --text: #e8e6e1;
+            --text-dim: #8a8b8e;
+            --text-bright: #ffffff;
+            --red: #e05252;
+            --red-bg: rgba(224, 82, 82, 0.1);
+            --green: #4ade80;
+            --green-bg: rgba(74, 222, 128, 0.1);
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Grain overlay */
+        .grain {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .app { position: relative; z-index: 2; }
+
+        /* ─── Top Nav ─── */
+        .top-nav {
+            padding: 0 32px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-bright);
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 30px;
+            height: 30px;
+            border: 2px solid var(--amber);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            color: var(--amber);
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-email {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .btn-logout {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            color: var(--text-dim);
+            background: none;
+            border: 1px solid var(--border);
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-logout:hover {
+            color: var(--text);
+            border-color: var(--text-dim);
+        }
+
+        /* ─── Demo Personalization ─── */
+        .demo-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(232, 162, 48, 0.08) 0%, rgba(232, 162, 48, 0.02) 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+        }
+
+        .demo-banner.visible {
+            display: block;
+        }
+
+        .demo-banner-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .demo-badge {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--amber);
+            background: rgba(232, 162, 48, 0.12);
+            padding: 4px 12px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .demo-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-bright);
+        }
+
+        .demo-subtitle {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-left: auto;
+        }
+
+        .aha-alert {
+            display: none;
+            background: linear-gradient(135deg, rgba(232, 162, 48, 0.12) 0%, rgba(232, 162, 48, 0.04) 100%);
+            border: 1px solid rgba(232, 162, 48, 0.25);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .aha-alert.visible {
+            display: block;
+        }
+
+        .aha-alert-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .aha-alert-badge {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #0a0b0f;
+            background: var(--amber);
+            padding: 3px 10px;
+            border-radius: 4px;
+        }
+
+        .aha-alert-new {
+            font-size: 11px;
+            color: var(--amber);
+            font-weight: 500;
+        }
+
+        .aha-alert-headline {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text-bright);
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .aha-alert-desc {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .demo-banner { padding: 12px 16px; }
+            .demo-banner-inner { flex-wrap: wrap; gap: 8px; }
+            .demo-subtitle { margin-left: 0; font-size: 12px; }
+        }
+
+        /* ─── Tabs ─── */
+        .tabs-bar {
+            padding: 0 32px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+            display: flex;
+            gap: 0;
+        }
+
+        .tab-btn {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-dim);
+            background: none;
+            border: none;
+            padding: 16px 24px;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            color: var(--amber);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--amber);
+        }
+
+        /* ─── Content Area ─── */
+        .content-area {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px;
+        }
+
+        .tab-panel {
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── Stat Cards ─── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 24px;
+            transition: border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            border-color: #2a2c36;
+        }
+
+        .stat-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--amber);
+            letter-spacing: -1.5px;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 8px;
+        }
+
+        /* ─── Buttons ─── */
+        .btn-primary {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bg);
+            background: var(--amber);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background: var(--amber-dim);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary.full-width {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-secondary {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--text-dim);
+        }
+
+        .btn-danger {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--red);
+            background: var(--red-bg);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-danger:hover {
+            opacity: 0.8;
+        }
+
+        .btn-small {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--amber);
+            background: var(--amber-bg);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-small:hover {
+            background: var(--amber-bg-hover);
+        }
+
+        /* ─── Scan Button ─── */
+        .scan-row {
+            margin-bottom: 32px;
+        }
+
+        /* ─── Section Headers ─── */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-bright);
+            letter-spacing: -0.3px;
+        }
+
+        /* ─── Changes Feed ─── */
+        .changes-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .change-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px 24px;
+            transition: border-color 0.2s;
+        }
+
+        .change-item:hover {
+            border-color: #2a2c36;
+        }
+
+        .change-top {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .change-emoji {
+            font-size: 22px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .change-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .change-headline {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-bright);
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+
+        .change-analysis {
+            font-size: 14px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .change-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .change-competitor {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 3px 10px;
+            border-radius: 4px;
+        }
+
+        .change-time {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .change-tag {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 10px;
+            border-radius: 4px;
+        }
+
+        .tag-high {
+            color: var(--red);
+            background: var(--red-bg);
+        }
+
+        .tag-medium {
+            color: var(--amber);
+            background: var(--amber-bg);
+        }
+
+        .tag-low {
+            color: var(--green);
+            background: var(--green-bg);
+        }
+
+        /* ─── Competitor Cards ─── */
+        .competitors-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .competitor-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+
+        .competitor-card:hover {
+            border-color: #2a2c36;
+        }
+
+        .competitor-header {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+
+        .competitor-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .competitor-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--amber-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--amber);
+            flex-shrink: 0;
+        }
+
+        .competitor-name {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-bright);
+        }
+
+        .competitor-website {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        .competitor-stats-inline {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .competitor-stat-chip {
+            font-size: 12px;
+            color: var(--text-dim);
+            background: rgba(255, 255, 255, 0.03);
+            padding: 4px 12px;
+            border-radius: 4px;
+        }
+
+        .competitor-stat-chip strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .competitor-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .competitor-expand-icon {
+            color: var(--text-dim);
+            font-size: 12px;
+            margin-left: 8px;
+            transition: transform 0.2s;
+        }
+
+        .competitor-card.expanded .competitor-expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .competitor-detail {
+            display: none;
+            border-top: 1px solid var(--border);
+            padding: 20px 24px;
+        }
+
+        .competitor-card.expanded .competitor-detail {
+            display: block;
+        }
+
+        .url-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .url-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            gap: 12px;
+        }
+
+        .url-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .url-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .url-path {
+            font-size: 12px;
+            color: var(--text-dim);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        .url-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .url-meta-text {
+            font-size: 11px;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        .url-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .detail-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ─── Forms / Modals ─── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            width: 100%;
+            max-width: 460px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-bright);
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            color: var(--text);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-input::placeholder {
+            color: var(--text-dim);
+        }
+
+        .form-input:focus, .form-select:focus {
+            border-color: var(--amber);
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238a8b8e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
+        }
+
+        .form-select option {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .btn-cancel {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            color: var(--text-dim);
+            background: none;
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel:hover {
+            color: var(--text);
+            border-color: var(--text-dim);
+        }
+
+        /* ─── Briefs ─── */
+        .briefs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .brief-item {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+
+        .brief-item:hover {
+            border-color: #2a2c36;
+        }
+
+        .brief-header {
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+
+        .brief-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .brief-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--amber);
+            flex-shrink: 0;
+        }
+
+        .brief-dot.sent { background: var(--green); }
+        .brief-dot.pending { background: var(--text-dim); }
+
+        .brief-subject {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-bright);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .brief-header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+
+        .brief-changes-count {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .brief-date {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .brief-sent-badge {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 10px;
+            border-radius: 4px;
+        }
+
+        .brief-sent-badge.sent {
+            color: var(--green);
+            background: var(--green-bg);
+        }
+
+        .brief-sent-badge.not-sent {
+            color: var(--text-dim);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .brief-expand-icon {
+            color: var(--text-dim);
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+
+        .brief-item.expanded .brief-expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .brief-export-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--amber);
+            background: rgba(232, 162, 48, 0.08);
+            border: 1px solid rgba(232, 162, 48, 0.2);
+            border-radius: 4px;
+            padding: 3px 9px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            white-space: nowrap;
+            text-decoration: none;
+            letter-spacing: 0.3px;
+        }
+        .brief-export-btn:hover {
+            background: rgba(232, 162, 48, 0.15);
+            border-color: rgba(232, 162, 48, 0.4);
+        }
+        .brief-export-btn.loading {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .brief-content-wrapper {
+            display: none;
+            border-top: 1px solid var(--border);
+            padding: 0;
+        }
+
+        .brief-item.expanded .brief-content-wrapper {
+            display: block;
+        }
+
+        .brief-content-frame {
+            width: 100%;
+            border: none;
+            min-height: 300px;
+            background: #ffffff;
+            border-radius: 0 0 10px 10px;
+        }
+
+        /* ─── Empty State ─── */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-icon {
+            font-size: 40px;
+            margin-bottom: 16px;
+            opacity: 0.4;
+        }
+
+        .empty-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-bright);
+            margin-bottom: 8px;
+        }
+
+        .empty-desc {
+            font-size: 14px;
+            color: var(--text-dim);
+            max-width: 360px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* ─── Loading State ─── */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+        }
+
+        .spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid var(--border);
+            border-top-color: var(--amber);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ─── Toast ─── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            color: var(--text);
+            z-index: 200;
+            transform: translateY(80px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .toast.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        /* ─── Onboarding Wizard ─── */
+        .wizard-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            z-index: 300;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .wizard-overlay.active {
+            display: flex;
+        }
+
+        .wizard {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 48px 44px 40px;
+            width: 100%;
+            max-width: 540px;
+            animation: fadeIn 0.3s ease;
+            position: relative;
+        }
+
+        .wizard-step-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+
+        .wizard-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--border);
+            transition: background 0.3s;
+        }
+
+        .wizard-dot.active {
+            background: var(--amber);
+            width: 24px;
+            border-radius: 4px;
+        }
+
+        .wizard-dot.done {
+            background: var(--amber-dim);
+        }
+
+        .wizard-step {
+            display: none;
+        }
+
+        .wizard-step.active {
+            display: block;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .wizard-eyebrow {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--amber);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .wizard-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text-bright);
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .wizard-subtitle {
+            font-size: 15px;
+            color: var(--text-dim);
+            margin-bottom: 28px;
+            line-height: 1.6;
+        }
+
+        .competitor-input-group {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .competitor-input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .competitor-num {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dim);
+            width: 20px;
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        .competitor-input {
+            flex: 1;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            color: var(--text);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 11px 14px;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .competitor-input::placeholder {
+            color: #4a4b4e;
+        }
+
+        .competitor-input:focus {
+            border-color: var(--amber);
+        }
+
+        .suggestion-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+            margin-left: 30px;
+            min-height: 0;
+        }
+
+        .suggestion-pill {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--amber);
+            background: var(--amber-bg);
+            border: 1px solid rgba(232, 162, 48, 0.2);
+            padding: 4px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .suggestion-pill:hover {
+            background: var(--amber-bg-hover);
+            border-color: var(--amber);
+        }
+
+        .suggestion-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-left: 30px;
+            margin-top: 6px;
+            margin-bottom: 4px;
+        }
+
+        .wizard-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 24px 0;
+        }
+
+        /* Step 2 - Delivery */
+        .delivery-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .toggle-btn.active {
+            border-color: var(--amber);
+            background: var(--amber-bg);
+            color: var(--amber);
+        }
+
+        .toggle-btn.disabled-soon {
+            opacity: 0.5;
+            cursor: not-allowed;
+            position: relative;
+        }
+
+        .coming-soon-badge {
+            font-size: 10px;
+            background: rgba(255,255,255,0.08);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--text-dim);
+        }
+
+        .wizard-email-input {
+            width: 100%;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            color: var(--text);
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .wizard-email-input:focus {
+            border-color: var(--amber);
+        }
+
+        .wizard-email-input::placeholder {
+            color: #4a4b4e;
+        }
+
+        /* Step 3 - Generate */
+        .generate-hero {
+            text-align: center;
+            padding: 16px 0 28px;
+        }
+
+        .generate-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin: 24px 0 12px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.6s ease;
+        }
+
+        .progress-label {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-align: center;
+            min-height: 20px;
+        }
+
+        .wizard-competitors-summary {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .comp-chip {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .comp-chip-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--amber);
+            flex-shrink: 0;
+        }
+
+        /* Wizard footer */
+        .wizard-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 32px;
+        }
+
+        .wizard-back {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            color: var(--text-dim);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            transition: color 0.2s;
+        }
+
+        .wizard-back:hover {
+            color: var(--text);
+        }
+
+        .wizard-back:disabled {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .wizard-next {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--bg);
+            background: var(--amber);
+            border: none;
+            padding: 13px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .wizard-next:hover {
+            background: var(--amber-dim);
+        }
+
+        .wizard-next:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .wizard-skip {
+            font-size: 13px;
+            color: var(--text-dim);
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            transition: color 0.2s;
+        }
+
+        .wizard-skip:hover {
+            color: var(--text);
+        }
+
+        /* ─── Slack Alert Preview ─── */
+        .slack-preview-wrapper {
+            background: #1a1d2e;
+            border: 1px solid #2d2f45;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .slack-channel-header {
+            background: #161827;
+            border-bottom: 1px solid #2d2f45;
+            padding: 11px 18px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .slack-hash {
+            color: #9b8fc4;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .slack-channel-name {
+            color: #d4d2e8;
+            font-size: 14px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .slack-preview-label {
+            font-size: 10px;
+            background: rgba(155, 143, 196, 0.18);
+            color: #9b8fc4;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .slack-message {
+            padding: 16px 18px 14px 18px;
+            display: flex;
+            gap: 12px;
+            position: relative;
+        }
+
+        .slack-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 7px;
+            background: linear-gradient(135deg, #e8a230, #c4882a);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .slack-avatar-inner {
+            color: #0a0b0f;
+            font-size: 17px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .slack-message-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .slack-message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 9px;
+        }
+
+        .slack-bot-name {
+            color: #e8e6f0;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .slack-bot-badge {
+            font-size: 9px;
+            background: rgba(155, 143, 196, 0.25);
+            color: #9b8fc4;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            border: 1px solid rgba(155, 143, 196, 0.35);
+        }
+
+        .slack-timestamp {
+            color: #5e5c72;
+            font-size: 12px;
+        }
+
+        .slack-message-content {
+            background: #1e2135;
+            border-radius: 8px;
+            border: 1px solid #2d2f45;
+            border-left: 3px solid #e8a230;
+            padding: 14px 16px;
+        }
+
+        .slack-alert-header {
+            font-size: 14px;
+            font-weight: 700;
+            color: #e8e6f0;
+            margin-bottom: 7px;
+        }
+
+        .slack-alert-finding {
+            font-size: 13.5px;
+            color: #a8a6bc;
+            line-height: 1.55;
+            margin-bottom: 12px;
+        }
+
+        .slack-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 11px;
+        }
+
+        .slack-badge {
+            font-size: 11px;
+            padding: 3px 9px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .slack-badge.pricing {
+            background: rgba(232, 162, 48, 0.13);
+            color: #e8a230;
+            border: 1px solid rgba(232, 162, 48, 0.28);
+        }
+
+        .slack-badge.cta {
+            background: rgba(74, 222, 128, 0.09);
+            color: #4ade80;
+            border: 1px solid rgba(74, 222, 128, 0.2);
+        }
+
+        .slack-badge.feature {
+            background: rgba(155, 143, 196, 0.13);
+            color: #9b8fc4;
+            border: 1px solid rgba(155, 143, 196, 0.28);
+        }
+
+        .slack-confidence {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-bottom: 13px;
+        }
+
+        .confidence-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #4ade80;
+            flex-shrink: 0;
+        }
+
+        .confidence-label {
+            font-size: 12px;
+            color: #4ade80;
+            font-weight: 600;
+        }
+
+        .confidence-sep {
+            color: #5e5c72;
+            font-size: 12px;
+        }
+
+        .confidence-source {
+            font-size: 12px;
+            color: #9b8fc4;
+        }
+
+        .slack-cta-link {
+            display: inline-block;
+            font-size: 13px;
+            color: #9b8fc4;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 5px 11px;
+            background: rgba(155, 143, 196, 0.1);
+            border-radius: 5px;
+            border: 1px solid rgba(155, 143, 196, 0.28);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .slack-cta-link:hover {
+            background: rgba(155, 143, 196, 0.2);
+            color: #c4bce0;
+        }
+
+        .slack-preview-footer {
+            background: #131524;
+            border-top: 1px solid #2d2f45;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slack-footer-icon {
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+
+        .slack-footer-text {
+            font-size: 13px;
+            color: #5e5c72;
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        .slack-footer-text strong {
+            color: #9b8fc4;
+        }
+
+        .slack-connect-btn {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1a1d2e;
+            background: #9b8fc4;
+            border: none;
+            padding: 7px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .slack-connect-btn:hover {
+            background: #b8aede;
+        }
+
+        .section-badge {
+            font-size: 10px;
+            background: rgba(155, 143, 196, 0.18);
+            color: #9b8fc4;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 768px) {
+            .top-nav { padding: 0 16px; }
+            .tabs-bar { padding: 0 16px; overflow-x: auto; }
+            .tab-btn { padding: 14px 16px; font-size: 13px; white-space: nowrap; }
+            .content-area { padding: 20px 16px; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .stat-value { font-size: 28px; }
+            .competitor-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .competitor-stats-inline { flex-wrap: wrap; }
+            .url-item { flex-direction: column; align-items: flex-start; }
+            .url-actions { margin-top: 8px; }
+            .brief-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .brief-header-right { flex-wrap: wrap; }
+            .modal { margin: 16px; padding: 24px; }
+            .user-email { display: none; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-row { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 600px) {
+            .wizard { margin: 16px; padding: 32px 24px 28px; }
+            .wizard-title { font-size: 22px; }
+            .delivery-toggle { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="grain"></div>
+    <div class="app">
+        <!-- Top Nav -->
+        <nav class="top-nav">
+            <a href="/dashboard" class="logo">
+                <div class="logo-icon">&#9678;</div>
+                Spyglass
+            </a>
+            <div class="nav-right">
+                <span class="user-email" id="userEmail"></span>
+                <button class="btn-logout" onclick="logout()">Log out</button>
+            </div>
+        </nav>
+
+        <!-- Demo Personalization Banner (hidden for non-demo users) -->
+        <div class="demo-banner" id="demoBanner">
+            <div class="demo-banner-inner">
+                <span class="demo-badge" id="demoBadge">Intelligence</span>
+                <span class="demo-title" id="demoTitle"></span>
+                <span class="demo-subtitle" id="demoSubtitle">Autonomous competitive monitoring</span>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs-bar">
+            <button class="tab-btn active" data-tab="overview">Overview</button>
+            <button class="tab-btn" data-tab="competitors">Competitors</button>
+            <button class="tab-btn" data-tab="briefs">Briefs</button>
+        </div>
+
+        <!-- Content -->
+        <div class="content-area">
+
+            <!-- ────────── OVERVIEW TAB ────────── -->
+            <div class="tab-panel active" id="tab-overview">
+                <!-- Aha Moment Alert (shown for demo users) -->
+                <div class="aha-alert" id="ahaAlert">
+                    <div class="aha-alert-top">
+                        <span class="aha-alert-badge">High Confidence</span>
+                        <span class="aha-alert-new">Detected 2 days ago</span>
+                    </div>
+                    <div class="aha-alert-headline" id="ahaHeadline"></div>
+                    <div class="aha-alert-desc" id="ahaDesc">Vantage has temporarily eliminated the $2.50/million token fee for their FinOps Agent through July 1, 2026. This removes the cost barrier for teams evaluating AI-powered cost recommendations and signals aggressive adoption-over-revenue prioritization.</div>
+                </div>
+
+                <div class="stats-row" id="statsRow">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statCompetitors">--</div>
+                        <div class="stat-label">Competitors</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statUrls">--</div>
+                        <div class="stat-label">URLs Monitored</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statChanges">--</div>
+                        <div class="stat-label">Changes This Week</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statBriefs">--</div>
+                        <div class="stat-label">Briefs Sent</div>
+                    </div>
+                </div>
+
+                <div class="scan-row">
+                    <button class="btn-primary full-width" id="btnRunScan" onclick="runFullScan()">
+                        Run Scan Now
+                    </button>
+                </div>
+
+                <div class="section-header">
+                    <div class="section-title">Recent Changes</div>
+                </div>
+                <div id="changesFeed">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+
+                <!-- ── Slack Alert Preview ── -->
+                <div class="section-header" style="margin-top:32px;">
+                    <div class="section-title">Slack Alert Preview</div>
+                    <span class="section-badge">Coming Soon</span>
+                </div>
+                <div class="slack-preview-wrapper">
+                    <!-- Channel header -->
+                    <div class="slack-channel-header">
+                        <span class="slack-hash">#</span>
+                        <span class="slack-channel-name">leadership</span>
+                        <span class="slack-preview-label">Preview</span>
+                    </div>
+                    <!-- Message -->
+                    <div class="slack-message">
+                        <div class="slack-avatar">
+                            <div class="slack-avatar-inner">&#9678;</div>
+                        </div>
+                        <div class="slack-message-body">
+                            <div class="slack-message-header">
+                                <span class="slack-bot-name">Spyglass</span>
+                                <span class="slack-bot-badge">APP</span>
+                                <span class="slack-timestamp">Today at 6:00 AM</span>
+                            </div>
+                            <div class="slack-message-content">
+                                <div class="slack-alert-header">&#128680; Critical Shift Detected</div>
+                                <div class="slack-alert-finding" id="slackFinding">Vantage dropped AI agent token pricing through July 2026 &#8212; direct play against your pricing tier. Removal of the $2.50/million token fee signals aggressive adoption-over-revenue prioritization.</div>
+                                <div class="slack-badges">
+                                    <span class="slack-badge pricing">&#128176; Pricing</span>
+                                    <span class="slack-badge cta">&#127919; CTA</span>
+                                    <span class="slack-badge feature">&#128640; Features</span>
+                                </div>
+                                <div class="slack-confidence">
+                                    <span class="confidence-dot"></span>
+                                    <span class="confidence-label">High Confidence</span>
+                                    <span class="confidence-sep">&#183;</span>
+                                    <span class="confidence-source" id="slackSource">vantage.sh/pricing</span>
+                                </div>
+                                <a class="slack-cta-link" href="#" onclick="switchToTab('briefs'); return false;">View Full Brief &#8594;</a>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Footer CTA -->
+                    <div class="slack-preview-footer">
+                        <span class="slack-footer-icon">&#128172;</span>
+                        <span class="slack-footer-text">Get critical alerts like this in your <strong>#leadership</strong> channel the moment a competitive shift is detected</span>
+                        <button class="slack-connect-btn" onclick="alert('Slack integration coming soon! You\'ll get alerts like this in real-time.')">Connect Slack</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ────────── COMPETITORS TAB ────────── -->
+            <div class="tab-panel" id="tab-competitors">
+                <div class="section-header">
+                    <div class="section-title">Competitors</div>
+                    <button class="btn-primary" onclick="openModal('addCompetitor')">+ Add Competitor</button>
+                </div>
+                <div id="competitorsList">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+
+            <!-- ────────── BRIEFS TAB ────────── -->
+            <div class="tab-panel" id="tab-briefs">
+                <div class="section-header">
+                    <div class="section-title">Intelligence Briefs</div>
+                </div>
+                <div id="briefsList">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ────────── ADD COMPETITOR MODAL ────────── -->
+    <div class="modal-overlay" id="modal-addCompetitor">
+        <div class="modal">
+            <div class="modal-title">Add Competitor</div>
+            <form onsubmit="submitAddCompetitor(event)">
+                <div class="form-group">
+                    <label class="form-label">Name</label>
+                    <input class="form-input" type="text" id="compName" placeholder="e.g. Acme Corp" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Website</label>
+                    <input class="form-input" type="text" id="compWebsite" placeholder="e.g. acme.com" required>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-cancel" type="button" onclick="closeModals()">Cancel</button>
+                    <button class="btn-primary" type="submit">Add Competitor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ────────── ADD URL MODAL ────────── -->
+    <div class="modal-overlay" id="modal-addUrl">
+        <div class="modal">
+            <div class="modal-title">Add Monitored URL</div>
+            <form onsubmit="submitAddUrl(event)">
+                <input type="hidden" id="addUrlCompetitorId">
+                <div class="form-group">
+                    <label class="form-label">URL</label>
+                    <input class="form-input" type="url" id="urlValue" placeholder="https://acme.com/pricing" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Label</label>
+                    <input class="form-input" type="text" id="urlLabel" placeholder="e.g. Pricing Page">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" id="urlType">
+                        <option value="general">General</option>
+                        <option value="pricing">Pricing</option>
+                        <option value="features">Features</option>
+                        <option value="jobs">Jobs</option>
+                        <option value="blog">Blog</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-cancel" type="button" onclick="closeModals()">Cancel</button>
+                    <button class="btn-primary" type="submit">Add URL</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         ONBOARDING WIZARD
+         ════════════════════════════════════════════ -->
+    <div class="wizard-overlay" id="wizardOverlay">
+        <div class="wizard">
+
+            <!-- Step indicator -->
+            <div class="wizard-step-indicator">
+                <div class="wizard-dot active" id="wDot1"></div>
+                <div class="wizard-dot" id="wDot2"></div>
+                <div class="wizard-dot" id="wDot3"></div>
+            </div>
+
+            <!-- ── Step 1: Competitors ── -->
+            <div class="wizard-step active" id="wStep1">
+                <div class="wizard-eyebrow">Step 1 of 3</div>
+                <div class="wizard-title">Who are you watching?</div>
+                <div class="wizard-subtitle">Enter your top competitors. We'll monitor their sites and alert you to every meaningful change.</div>
+
+                <!-- Competitor 1 -->
+                <div class="competitor-input-group" id="cGroup1">
+                    <div class="competitor-input-row">
+                        <span class="competitor-num">1.</span>
+                        <input class="competitor-input" type="text" id="cInput1" placeholder="e.g. vantage.sh or Vantage" autocomplete="off">
+                    </div>
+                    <div class="suggestion-label" id="cSugLabel1" style="display:none;">Suggested competitors:</div>
+                    <div class="suggestion-pills" id="cSug1"></div>
+                </div>
+
+                <!-- Competitor 2 -->
+                <div class="competitor-input-group" id="cGroup2">
+                    <div class="competitor-input-row">
+                        <span class="competitor-num">2.</span>
+                        <input class="competitor-input" type="text" id="cInput2" placeholder="Competitor website or name" autocomplete="off">
+                    </div>
+                    <div class="suggestion-label" id="cSugLabel2" style="display:none;">Suggested competitors:</div>
+                    <div class="suggestion-pills" id="cSug2"></div>
+                </div>
+
+                <!-- Competitor 3 -->
+                <div class="competitor-input-group" id="cGroup3">
+                    <div class="competitor-input-row">
+                        <span class="competitor-num">3.</span>
+                        <input class="competitor-input" type="text" id="cInput3" placeholder="Add a third (optional)" autocomplete="off">
+                    </div>
+                    <div class="suggestion-label" id="cSugLabel3" style="display:none;">Suggested competitors:</div>
+                    <div class="suggestion-pills" id="cSug3"></div>
+                </div>
+
+                <div class="wizard-footer">
+                    <button class="wizard-skip" onclick="skipWizard()">Skip setup</button>
+                    <button class="wizard-next" id="wNext1" onclick="wizardStep1Next()">
+                        Continue →
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── Step 2: Delivery ── -->
+            <div class="wizard-step" id="wStep2">
+                <div class="wizard-eyebrow">Step 2 of 3</div>
+                <div class="wizard-title">Where should we send the brief?</div>
+                <div class="wizard-subtitle">Get your competitive intelligence delivered directly to your inbox every morning.</div>
+
+                <div class="delivery-toggle">
+                    <button class="toggle-btn active" id="toggleEmail" onclick="selectDelivery('email')">
+                        📧 Email
+                    </button>
+                    <button class="toggle-btn disabled-soon" onclick="selectDelivery('slack')" disabled>
+                        💬 Slack <span class="coming-soon-badge">Soon</span>
+                    </button>
+                </div>
+
+                <div id="deliveryEmailSection">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Delivery email</label>
+                        <input class="wizard-email-input" type="email" id="wEmailInput" placeholder="you@company.com">
+                    </div>
+                </div>
+
+                <div class="wizard-footer">
+                    <button class="wizard-back" onclick="wizardGoToStep(1)">← Back</button>
+                    <button class="wizard-next" onclick="wizardStep2Next()">
+                        Continue →
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── Step 3: Generate ── -->
+            <div class="wizard-step" id="wStep3">
+                <div class="wizard-eyebrow">Step 3 of 3</div>
+                <div class="wizard-title">Generate My First Brief</div>
+                <div class="wizard-subtitle">We're scanning your competitors right now and building your first intelligence brief.</div>
+
+                <div class="generate-hero">
+                    <span class="generate-icon" id="wGenIcon">🔍</span>
+                </div>
+
+                <!-- Competitors summary chips -->
+                <div class="wizard-competitors-summary" id="wCompSummary"></div>
+
+                <!-- Progress bar -->
+                <div class="progress-track">
+                    <div class="progress-fill" id="wProgressFill"></div>
+                </div>
+                <div class="progress-label" id="wProgressLabel">Ready to scan</div>
+
+                <div class="wizard-footer" style="margin-top:28px;">
+                    <button class="wizard-back" id="wBackFromStep3" onclick="wizardGoToStep(2)">← Back</button>
+                    <button class="wizard-next" id="wLaunchBtn" onclick="launchScan()">
+                        🚀 Launch Spyglass
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Polsia Analytics -->
+    <script>
+    (function() {
+        var slug = 'spyglass-10';
+        if (!slug) return;
+        var vid = localStorage.getItem('polsia_vid');
+        if (!vid) {
+            vid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+            localStorage.setItem('polsia_vid', vid);
+        }
+        new Image().src = 'https://polsia.com/api/beacon/pixel?s=' + encodeURIComponent(slug) + '&v=' + encodeURIComponent(vid);
+    })();
+    </script>
+
+    <script>
+    /* ═══════════════════════════════════════════════════
+       Auth & API
+       ═══════════════════════════════════════════════════ */
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/login';
+
+    function api(path, options = {}) {
+        const opts = {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token,
+                ...(options.headers || {})
+            }
+        };
+        if (options.body) {
+            opts.body = JSON.stringify(options.body);
+        }
+        return fetch(path, opts).then(function(r) {
+            if (r.status === 401) {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            }
+            return r.json();
+        });
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Toast
+       ═══════════════════════════════════════════════════ */
+    function showToast(message, isError) {
+        var toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = 'toast' + (isError ? ' error' : '');
+        requestAnimationFrame(function() {
+            toast.classList.add('visible');
+        });
+        setTimeout(function() {
+            toast.classList.remove('visible');
+        }, 3000);
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Tabs
+       ═══════════════════════════════════════════════════ */
+    var tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var tabId = btn.getAttribute('data-tab');
+            tabBtns.forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+            document.getElementById('tab-' + tabId).classList.add('active');
+
+            if (tabId === 'overview') loadOverview();
+            if (tabId === 'competitors') loadCompetitors();
+            if (tabId === 'briefs') loadBriefs();
+        });
+    });
+
+    function switchToTab(tabId) {
+        var tabBtns = document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(function(b) { b.classList.remove('active'); });
+        var targetBtn = document.querySelector('.tab-btn[data-tab="' + tabId + '"]');
+        if (targetBtn) targetBtn.classList.add('active');
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        var panel = document.getElementById('tab-' + tabId);
+        if (panel) panel.classList.add('active');
+        if (tabId === 'overview') loadOverview();
+        if (tabId === 'competitors') loadCompetitors();
+        if (tabId === 'briefs') loadBriefs();
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Modals
+       ═══════════════════════════════════════════════════ */
+    function openModal(id) {
+        document.getElementById('modal-' + id).classList.add('active');
+    }
+
+    function closeModals() {
+        document.querySelectorAll('.modal-overlay').forEach(function(m) {
+            m.classList.remove('active');
+        });
+    }
+
+    // Close modal on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeModals();
+        });
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeModals();
+    });
+
+    /* ═══════════════════════════════════════════════════
+       Helpers
+       ═══════════════════════════════════════════════════ */
+    function formatDate(dateStr) {
+        if (!dateStr) return '--';
+        var d = new Date(dateStr);
+        var now = new Date();
+        var diffMs = now - d;
+        var diffMins = Math.floor(diffMs / 60000);
+        var diffHours = Math.floor(diffMs / 3600000);
+        var diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return diffMins + 'm ago';
+        if (diffHours < 24) return diffHours + 'h ago';
+        if (diffDays < 7) return diffDays + 'd ago';
+
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function categoryEmoji(category) {
+        var map = {
+            pricing: '\uD83D\uDCB0',
+            features: '\u2699\uFE0F',
+            jobs: '\uD83D\uDC65',
+            blog: '\uD83D\uDCDD',
+            messaging: '\uD83D\uDCE3',
+            general: '\uD83D\uDD0D',
+            design: '\uD83C\uDFA8',
+            product: '\uD83D\uDCE6',
+            // v2: Structural change categories
+            cta_change: '\uD83C\uDFAF',
+            navigation: '\uD83E\uDDED',
+            form_change: '\uD83D\uDCDD',
+            layout: '\uD83C\uDFD7\uFE0F',
+            pricing_structure: '\uD83D\uDCB0',
+            legal: '\u2696\uFE0F',
+            hiring: '\uD83D\uDC65'
+        };
+        return map[(category || '').toLowerCase()] || '\uD83D\uDD0D';
+    }
+
+    function urgencyClass(urgency) {
+        if (!urgency) return 'tag-low';
+        var u = urgency.toLowerCase();
+        if (u === 'high' || u === 'critical') return 'tag-high';
+        if (u === 'medium') return 'tag-medium';
+        return 'tag-low';
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       OVERVIEW TAB
+       ═══════════════════════════════════════════════════ */
+    function loadOverview() {
+        loadStats();
+        loadChanges();
+    }
+
+    function loadStats() {
+        api('/api/stats').then(function(data) {
+            document.getElementById('statCompetitors').textContent = data.competitors != null ? data.competitors : 0;
+            document.getElementById('statUrls').textContent = data.monitored_urls != null ? data.monitored_urls : 0;
+            document.getElementById('statChanges').textContent = data.changes_this_week != null ? data.changes_this_week : 0;
+            document.getElementById('statBriefs').textContent = data.briefs_sent != null ? data.briefs_sent : 0;
+        }).catch(function() {
+            // Leave as --
+        });
+    }
+
+    function loadChanges() {
+        var container = document.getElementById('changesFeed');
+        container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+        api('/api/changes').then(function(data) {
+            var changes = data.changes || [];
+            if (changes.length === 0) {
+                container.innerHTML =
+                    '<div class="empty-state">' +
+                        '<div class="empty-icon">\uD83D\uDD0D</div>' +
+                        '<div class="empty-title">No changes detected yet</div>' +
+                        '<div class="empty-desc">Add competitors and their URLs, then run a scan. Changes will appear here as they are detected.</div>' +
+                    '</div>';
+                return;
+            }
+
+            populateSlackPreview(changes);
+
+            var html = '<div class="changes-feed">';
+            changes.forEach(function(change) {
+                var ai = change.ai_analysis || {};
+                var headline = ai.headline || change.summary || 'Change detected';
+                var analysis = ai.analysis || '';
+                var category = ai.category || change.url_type || 'general';
+                var urgency = ai.urgency || 'low';
+                var competitorName = change.competitor_name || 'Unknown';
+
+                // v2: Build structural change badges
+                var structBadges = '';
+                var structChanges = change.structural_changes;
+                if (structChanges && Array.isArray(structChanges) && structChanges.length > 0) {
+                    var cats = {};
+                    structChanges.forEach(function(sc) {
+                        cats[sc.category] = (cats[sc.category] || 0) + 1;
+                    });
+                    var catLabels = { cta_change: 'CTA', navigation: 'Nav', form_change: 'Form', layout: 'Layout', pricing_structure: 'Pricing' };
+                    Object.keys(cats).forEach(function(cat) {
+                        var label = catLabels[cat] || cat;
+                        structBadges += '<span class="change-tag tag-medium" style="font-size:10px;">' + label + ' \u00D7' + cats[cat] + '</span>';
+                    });
+                }
+
+                html +=
+                    '<div class="change-item">' +
+                        '<div class="change-top">' +
+                            '<div class="change-emoji">' + categoryEmoji(category) + '</div>' +
+                            '<div class="change-body">' +
+                                '<div class="change-headline">' + escapeHtml(headline) + '</div>' +
+                                (analysis ? '<div class="change-analysis">' + escapeHtml(analysis) + '</div>' : '') +
+                                '<div class="change-meta">' +
+                                    '<span class="change-competitor">' + escapeHtml(competitorName) + '</span>' +
+                                    '<span class="change-time">' + formatDate(change.detected_at || change.created_at) + '</span>' +
+                                    '<span class="change-tag ' + urgencyClass(urgency) + '">' + escapeHtml(urgency) + '</span>' +
+                                    structBadges +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }).catch(function() {
+            container.innerHTML =
+                '<div class="empty-state">' +
+                    '<div class="empty-icon">\u26A0\uFE0F</div>' +
+                    '<div class="empty-title">Failed to load changes</div>' +
+                    '<div class="empty-desc">Please try refreshing the page.</div>' +
+                '</div>';
+        });
+    }
+
+    function populateSlackPreview(changes) {
+        // Find highest-urgency change to feature in Slack preview
+        var priority = { critical: 4, high: 3, medium: 2, low: 1 };
+        var best = null;
+        changes.forEach(function(c) {
+            var ai = c.ai_analysis || {};
+            var urg = (ai.urgency || c.urgency || 'low').toLowerCase();
+            if (!best || (priority[urg] || 0) > (priority[(best.ai_analysis || {}).urgency || 'low'] || 0)) {
+                best = c;
+            }
+        });
+        if (!best) return; // keep default demo content
+
+        var ai = best.ai_analysis || {};
+        var headline = ai.headline || best.summary || 'Competitive shift detected';
+        var analysis = ai.analysis || '';
+        var competitor = best.competitor_name || 'Competitor';
+        var sourceUrl = best.url || '';
+        var sourceDomain = sourceUrl ? sourceUrl.replace(/^https?:\/\//, '').split('/')[0] : competitor.toLowerCase().replace(/\s/g, '') + '.com';
+
+        // Derive structural badges from structural_changes
+        var cats = {};
+        var catLabels = { cta_change: '\uD83C\uDFAF CTA', navigation: '\uD83E\uDDED Nav', form_change: '\uD83D\uDCDD Form', layout: '\uD83C\uDFD7\uFE0F Layout', pricing_structure: '\uD83D\uDCB0 Pricing', pricing: '\uD83D\uDCB0 Pricing', features: '\uD83D\uDE80 Features', messaging: '\uD83D\uDCE3 Messaging' };
+        var sc = best.structural_changes;
+        if (sc && Array.isArray(sc) && sc.length > 0) {
+            sc.forEach(function(s) { cats[s.category] = true; });
+        } else {
+            var cat = (ai.category || best.url_type || 'general').toLowerCase();
+            cats[cat] = true;
+        }
+        var badgesHtml = '';
+        var catClassMap = { pricing: 'pricing', pricing_structure: 'pricing', cta_change: 'cta', features: 'feature', messaging: 'feature', navigation: 'feature', form_change: 'feature', layout: 'feature', general: 'feature' };
+        Object.keys(cats).slice(0, 3).forEach(function(cat) {
+            var label = catLabels[cat] || cat;
+            var cls = catClassMap[cat] || 'feature';
+            badgesHtml += '<span class="slack-badge ' + cls + '">' + label + '</span>';
+        });
+
+        var finding = headline;
+        if (analysis) finding += ' \u2014 ' + analysis.split('.')[0] + '.';
+
+        var findingEl = document.getElementById('slackFinding');
+        var sourceEl = document.getElementById('slackSource');
+        var badgesEl = document.querySelector('.slack-badges');
+        if (findingEl) findingEl.textContent = finding;
+        if (sourceEl) sourceEl.textContent = sourceDomain;
+        if (badgesEl && badgesHtml) badgesEl.innerHTML = badgesHtml;
+
+        // Log Slack preview impression to integration_logs (audit trail for due diligence)
+        var _tok = localStorage.getItem('token');
+        if (_tok) {
+            fetch('/api/integration/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _tok },
+                body: JSON.stringify({ action: 'slack_preview_viewed', target_system: 'Slack', metadata: { competitor: competitor, urgency: (ai.urgency || 'medium') } })
+            }).catch(function() {});
+        }
+    }
+
+    function runFullScan() {
+        var btn = document.getElementById('btnRunScan');
+        btn.disabled = true;
+        btn.textContent = 'Scanning...';
+
+        api('/api/scan', { method: 'POST' }).then(function(data) {
+            btn.disabled = false;
+            btn.textContent = 'Run Scan Now';
+            if (data.error) {
+                showToast(data.error, true);
+            } else {
+                showToast('Scan initiated successfully');
+                setTimeout(function() { loadOverview(); }, 2000);
+            }
+        }).catch(function() {
+            btn.disabled = false;
+            btn.textContent = 'Run Scan Now';
+            showToast('Failed to start scan', true);
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════
+       COMPETITORS TAB
+       ═══════════════════════════════════════════════════ */
+    var competitorUrlsCache = {};
+
+    function loadCompetitors() {
+        var container = document.getElementById('competitorsList');
+        container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+        api('/api/competitors').then(function(data) {
+            var competitors = data.competitors || [];
+            if (competitors.length === 0) {
+                container.innerHTML =
+                    '<div class="empty-state">' +
+                        '<div class="empty-icon">\uD83C\uDFAF</div>' +
+                        '<div class="empty-title">No competitors yet</div>' +
+                        '<div class="empty-desc">Add your first competitor to start monitoring their activity. Click "Add Competitor" above to get started.</div>' +
+                    '</div>';
+                return;
+            }
+
+            var html = '<div class="competitors-list">';
+            competitors.forEach(function(comp) {
+                var initial = (comp.name || '?')[0].toUpperCase();
+                html +=
+                    '<div class="competitor-card" id="comp-' + comp.id + '">' +
+                        '<div class="competitor-header" onclick="toggleCompetitor(' + comp.id + ')">' +
+                            '<div class="competitor-info">' +
+                                '<div class="competitor-avatar">' + escapeHtml(initial) + '</div>' +
+                                '<div>' +
+                                    '<div class="competitor-name">' + escapeHtml(comp.name) + '</div>' +
+                                    '<div class="competitor-website">' + escapeHtml(comp.website || '') + '</div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="competitor-stats-inline">' +
+                                '<span class="competitor-stat-chip"><strong>' + (comp.url_count || 0) + '</strong> URLs</span>' +
+                                '<span class="competitor-stat-chip"><strong>' + (comp.recent_changes || 0) + '</strong> changes</span>' +
+                                '<span class="competitor-expand-icon">\u25BC</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="competitor-detail" id="comp-detail-' + comp.id + '">' +
+                            '<div class="url-list" id="comp-urls-' + comp.id + '">' +
+                                '<div class="loading"><div class="spinner"></div></div>' +
+                            '</div>' +
+                            '<div class="detail-actions">' +
+                                '<button class="btn-secondary" onclick="openAddUrl(' + comp.id + ')">+ Add URL</button>' +
+                                '<button class="btn-danger" onclick="deleteCompetitor(' + comp.id + ', \'' + escapeHtml(comp.name).replace(/'/g, "\\'") + '\')">Delete Competitor</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }).catch(function() {
+            container.innerHTML =
+                '<div class="empty-state">' +
+                    '<div class="empty-icon">\u26A0\uFE0F</div>' +
+                    '<div class="empty-title">Failed to load competitors</div>' +
+                    '<div class="empty-desc">Please try refreshing the page.</div>' +
+                '</div>';
+        });
+    }
+
+    function toggleCompetitor(compId) {
+        var card = document.getElementById('comp-' + compId);
+        var isExpanded = card.classList.contains('expanded');
+
+        if (isExpanded) {
+            card.classList.remove('expanded');
+        } else {
+            card.classList.add('expanded');
+            loadCompetitorUrls(compId);
+        }
+    }
+
+    function loadCompetitorUrls(compId) {
+        var container = document.getElementById('comp-urls-' + compId);
+        container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+        api('/api/competitors/' + compId + '/urls').then(function(data) {
+            var urls = data.urls || [];
+            competitorUrlsCache[compId] = urls;
+
+            if (urls.length === 0) {
+                container.innerHTML =
+                    '<div class="empty-state" style="padding: 24px 0;">' +
+                        '<div class="empty-desc">No URLs monitored yet. Add a URL to start tracking changes.</div>' +
+                    '</div>';
+                return;
+            }
+
+            var html = '';
+            urls.forEach(function(u) {
+                html +=
+                    '<div class="url-item">' +
+                        '<div class="url-info">' +
+                            '<div class="url-label">' + escapeHtml(u.label || u.url_type || 'Page') + '</div>' +
+                            '<div class="url-path">' + escapeHtml(u.url) + '</div>' +
+                        '</div>' +
+                        '<div class="url-meta">' +
+                            '<span class="url-meta-text">' + (u.total_changes || 0) + ' changes</span>' +
+                            '<span class="url-meta-text">Checked ' + formatDate(u.last_checked_at) + '</span>' +
+                        '</div>' +
+                        '<div class="url-actions">' +
+                            '<button class="btn-small" onclick="scanUrl(' + u.id + ', this)">Scan</button>' +
+                            '<button class="btn-danger" onclick="deleteUrl(' + u.id + ', ' + compId + ')">Delete</button>' +
+                        '</div>' +
+                    '</div>';
+            });
+            container.innerHTML = html;
+        }).catch(function() {
+            container.innerHTML =
+                '<div class="empty-state" style="padding: 24px 0;">' +
+                    '<div class="empty-desc">Failed to load URLs.</div>' +
+                '</div>';
+        });
+    }
+
+    function openAddUrl(compId) {
+        document.getElementById('addUrlCompetitorId').value = compId;
+        document.getElementById('urlValue').value = '';
+        document.getElementById('urlLabel').value = '';
+        document.getElementById('urlType').value = 'general';
+        openModal('addUrl');
+    }
+
+    function submitAddCompetitor(e) {
+        e.preventDefault();
+        var name = document.getElementById('compName').value.trim();
+        var website = document.getElementById('compWebsite').value.trim();
+        if (!name) return;
+
+        api('/api/competitors', {
+            method: 'POST',
+            body: { name: name, website: website }
+        }).then(function(data) {
+            if (data.error) {
+                showToast(data.error, true);
+                return;
+            }
+            closeModals();
+            document.getElementById('compName').value = '';
+            document.getElementById('compWebsite').value = '';
+            showToast('Competitor added');
+            loadCompetitors();
+            loadStats();
+        }).catch(function() {
+            showToast('Failed to add competitor', true);
+        });
+    }
+
+    function submitAddUrl(e) {
+        e.preventDefault();
+        var compId = document.getElementById('addUrlCompetitorId').value;
+        var url = document.getElementById('urlValue').value.trim();
+        var label = document.getElementById('urlLabel').value.trim();
+        var urlType = document.getElementById('urlType').value;
+        if (!url) return;
+
+        api('/api/competitors/' + compId + '/urls', {
+            method: 'POST',
+            body: { url: url, label: label, url_type: urlType }
+        }).then(function(data) {
+            if (data.error) {
+                showToast(data.error, true);
+                return;
+            }
+            closeModals();
+            showToast('URL added');
+            loadCompetitorUrls(compId);
+            loadStats();
+        }).catch(function() {
+            showToast('Failed to add URL', true);
+        });
+    }
+
+    function deleteCompetitor(compId, name) {
+        if (!confirm('Delete competitor "' + name + '" and all its monitored URLs?')) return;
+
+        api('/api/competitors/' + compId, { method: 'DELETE' }).then(function(data) {
+            if (data.error) {
+                showToast(data.error, true);
+                return;
+            }
+            showToast('Competitor deleted');
+            loadCompetitors();
+            loadStats();
+        }).catch(function() {
+            showToast('Failed to delete competitor', true);
+        });
+    }
+
+    function deleteUrl(urlId, compId) {
+        if (!confirm('Delete this monitored URL?')) return;
+
+        api('/api/urls/' + urlId, { method: 'DELETE' }).then(function(data) {
+            if (data.error) {
+                showToast(data.error, true);
+                return;
+            }
+            showToast('URL deleted');
+            loadCompetitorUrls(compId);
+            loadStats();
+        }).catch(function() {
+            showToast('Failed to delete URL', true);
+        });
+    }
+
+    function scanUrl(urlId, btn) {
+        var originalText = btn.textContent;
+        btn.textContent = '...';
+        btn.disabled = true;
+
+        api('/api/scan/' + urlId, { method: 'POST' }).then(function(data) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            if (data.error) {
+                showToast(data.error, true);
+            } else {
+                showToast('Scan started for URL');
+            }
+        }).catch(function() {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            showToast('Failed to scan URL', true);
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════
+       BRIEFS TAB
+       ═══════════════════════════════════════════════════ */
+    function loadBriefs() {
+        var container = document.getElementById('briefsList');
+        container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+        api('/api/briefs').then(function(data) {
+            var briefs = data.briefs || [];
+            if (briefs.length === 0) {
+                container.innerHTML =
+                    '<div class="empty-state">' +
+                        '<div class="empty-icon">\uD83D\uDCEC</div>' +
+                        '<div class="empty-title">No briefs yet</div>' +
+                        '<div class="empty-desc">Intelligence briefs will appear here after scans detect changes. Run your first scan to get started.</div>' +
+                    '</div>';
+                return;
+            }
+
+            var html = '<div class="briefs-list">';
+            briefs.forEach(function(brief) {
+                var isSent = brief.sent_at || brief.sent;
+                var dotClass = isSent ? 'sent' : 'pending';
+                var badgeClass = isSent ? 'sent' : 'not-sent';
+                var badgeText = isSent ? 'Sent' : 'Not sent';
+
+                html +=
+                    '<div class="brief-item" id="brief-' + brief.id + '">' +
+                        '<div class="brief-header" onclick="toggleBrief(\'' + brief.id + '\')">' +
+                            '<div class="brief-header-left">' +
+                                '<div class="brief-dot ' + dotClass + '"></div>' +
+                                '<div class="brief-subject">' + escapeHtml(brief.subject || 'Intelligence Brief') + '</div>' +
+                            '</div>' +
+                            '<div class="brief-header-right">' +
+                                '<span class="brief-changes-count">' + (brief.changes_count || 0) + ' changes</span>' +
+                                '<span class="brief-date">' + formatDate(brief.created_at) + '</span>' +
+                                '<span class="brief-sent-badge ' + badgeClass + '">' + badgeText + '</span>' +
+                                '<button class="brief-export-btn" id="export-btn-' + brief.id + '" onclick="exportBriefMarkdown(event, \'' + brief.id + '\')" title="Export as Markdown for IDE or GitHub">&#11015; MD</button>' +
+                                '<span class="brief-expand-icon">\u25BC</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="brief-content-wrapper" id="brief-content-' + brief.id + '"></div>' +
+                    '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }).catch(function() {
+            container.innerHTML =
+                '<div class="empty-state">' +
+                    '<div class="empty-icon">\u26A0\uFE0F</div>' +
+                    '<div class="empty-title">Failed to load briefs</div>' +
+                    '<div class="empty-desc">Please try refreshing the page.</div>' +
+                '</div>';
+        });
+    }
+
+    function toggleBrief(briefId) {
+        var item = document.getElementById('brief-' + briefId);
+        var isExpanded = item.classList.contains('expanded');
+
+        if (isExpanded) {
+            item.classList.remove('expanded');
+        } else {
+            item.classList.add('expanded');
+            loadBriefContent(briefId);
+        }
+    }
+
+    function loadBriefContent(briefId) {
+        var wrapper = document.getElementById('brief-content-' + briefId);
+
+        // Don't reload if already loaded
+        if (wrapper.getAttribute('data-loaded')) return;
+
+        wrapper.innerHTML = '<div style="padding: 20px;"><div class="loading"><div class="spinner"></div></div></div>';
+
+        api('/api/briefs/' + briefId).then(function(data) {
+            var brief = data.brief || data;
+            var htmlContent = brief.html_content || '<p style="padding:20px;color:#8a8b8e;">No content available.</p>';
+
+            wrapper.setAttribute('data-loaded', '1');
+
+            var iframe = document.createElement('iframe');
+            iframe.className = 'brief-content-frame';
+            iframe.sandbox = 'allow-same-origin';
+            wrapper.innerHTML = '';
+            wrapper.appendChild(iframe);
+
+            var doc = iframe.contentDocument || iframe.contentWindow.document;
+            doc.open();
+            doc.write('<!DOCTYPE html><html><head><style>body{margin:0;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.6;color:#333;background:#fff;}h1,h2,h3{margin-top:16px;}a{color:#e8a230;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #ddd;padding:8px;}img{max-width:100%;}</style></head><body>' + htmlContent + '</body></html>');
+            doc.close();
+
+            // Auto-resize iframe
+            setTimeout(function() {
+                try {
+                    var bodyHeight = doc.body.scrollHeight;
+                    iframe.style.height = Math.max(bodyHeight + 40, 200) + 'px';
+                } catch(e) {}
+            }, 100);
+        }).catch(function() {
+            wrapper.innerHTML = '<div style="padding: 20px; color: var(--red); font-size: 14px;">Failed to load brief content.</div>';
+        });
+    }
+
+    function exportBriefMarkdown(event, briefId) {
+        event.stopPropagation(); // Don't toggle brief expand
+        var btn = document.getElementById('export-btn-' + briefId);
+        if (!btn || btn.classList.contains('loading')) return;
+
+        btn.classList.add('loading');
+        btn.textContent = '...';
+
+        var token = localStorage.getItem('token');
+        fetch('/api/briefs/' + briefId + '/export', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        }).then(function(res) {
+            if (!res.ok) throw new Error('Export failed');
+            // Extract filename from Content-Disposition header
+            var disposition = res.headers.get('Content-Disposition') || '';
+            var fnMatch = disposition.match(/filename="([^"]+)"/);
+            var filename = fnMatch ? fnMatch[1] : ('spyglass-brief-' + briefId + '.md');
+            return res.blob().then(function(blob) {
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }).catch(function(err) {
+            console.error('Export failed:', err);
+            alert('Export failed. Please try again.');
+        }).finally(function() {
+            btn.classList.remove('loading');
+            btn.innerHTML = '&#11015; MD';
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════
+       User Info + Demo Personalization
+       ═══════════════════════════════════════════════════ */
+    function loadUserInfo() {
+        api('/api/auth/me').then(function(data) {
+            var user = data.user;
+            if (!user) return;
+
+            // Show email in nav
+            if (user.email) {
+                document.getElementById('userEmail').textContent = user.email;
+            }
+
+            // Demo personalization
+            if (user.demo_company) {
+                // Show personalized banner
+                var banner = document.getElementById('demoBanner');
+                banner.classList.add('visible');
+                document.getElementById('demoTitle').textContent = user.demo_header || (user.demo_company + ' Intelligence');
+
+                // Update page title
+                document.title = (user.demo_header || user.demo_company + ' Intelligence') + ' - Spyglass';
+
+                // Update logo text
+                var logoEl = document.querySelector('.logo');
+                if (logoEl) {
+                    logoEl.innerHTML = '<div class="logo-icon">&#9678;</div>' + (user.demo_header || 'Spyglass');
+                }
+
+                // Show aha moment alert
+                if (user.demo_aha) {
+                    var ahaAlert = document.getElementById('ahaAlert');
+                    ahaAlert.classList.add('visible');
+                    document.getElementById('ahaHeadline').textContent = user.demo_aha;
+                    if (user.demo_aha_desc) {
+                        document.getElementById('ahaDesc').textContent = user.demo_aha_desc;
+                    }
+                }
+
+                // Welcome message
+                if (user.name) {
+                    document.getElementById('demoSubtitle').textContent = 'Welcome, ' + user.name.split(' ')[0] + ' \u2022 Autonomous competitive monitoring';
+                }
+
+                // Personalize Slack widget
+                if (user.demo_slack) {
+                    var slackEl = document.getElementById('slackFinding');
+                    if (slackEl) slackEl.textContent = user.demo_slack;
+                }
+                if (user.demo_slack_source) {
+                    var srcEl = document.getElementById('slackSource');
+                    if (srcEl) srcEl.textContent = user.demo_slack_source;
+                }
+            }
+        }).catch(function() {
+            // Silently fail - user info is not critical
+        });
+    }
+
+    /* ═══════════════════════════════════════════════════
+       Init
+       ═══════════════════════════════════════════════════ */
+    loadUserInfo();
+    loadOverview();
+    checkOnboarding();
+    </script>
+
+    <script>
+    /* ═══════════════════════════════════════════════════
+       ONBOARDING WIZARD
+       ═══════════════════════════════════════════════════ */
+
+    // ── Competitor Suggestion Engine ──────────────────
+    var COMPETITOR_MAP = {
+        // FinOps / Cloud Cost
+        'cloudzero': { suggestions: ['Vantage', 'Spot.io', 'CloudHealth', 'Kubecost'] },
+        'vantage':   { suggestions: ['CloudZero', 'CloudHealth', 'Spot.io', 'Kubecost'] },
+        'spot':      { suggestions: ['CloudZero', 'Vantage', 'CloudHealth', 'Kubecost'] },
+        'spotio':    { suggestions: ['CloudZero', 'Vantage', 'CloudHealth', 'Kubecost'] },
+        'cloudhealth': { suggestions: ['CloudZero', 'Vantage', 'Spot.io', 'Apptio'] },
+        'kubecost':  { suggestions: ['CloudZero', 'Vantage', 'OpenCost', 'Spot.io'] },
+        'opencost':  { suggestions: ['Kubecost', 'CloudZero', 'Vantage'] },
+        'apptio':    { suggestions: ['CloudZero', 'CloudHealth', 'Vantage'] },
+        // Cybersecurity / AI Security
+        '7ai':       { suggestions: ['CrowdStrike', 'SentinelOne', 'Darktrace', 'Vectra AI'] },
+        'crowdstrike': { suggestions: ['SentinelOne', 'Darktrace', 'Vectra AI', '7AI'] },
+        'sentinelone': { suggestions: ['CrowdStrike', 'Darktrace', 'Vectra AI', 'Cybereason'] },
+        'darktrace': { suggestions: ['CrowdStrike', 'SentinelOne', 'Vectra AI', 'Illumio'] },
+        'vectra':    { suggestions: ['CrowdStrike', 'Darktrace', 'SentinelOne'] },
+        'cybereason':{ suggestions: ['CrowdStrike', 'SentinelOne', 'Darktrace'] },
+        // AI Agents / Customer Support
+        'maven':     { suggestions: ['Zendesk AI', 'Intercom Fin', 'Ada', 'Kustomer'] },
+        'mavenagi':  { suggestions: ['Zendesk AI', 'Intercom Fin', 'Ada', 'Kustomer'] },
+        'zendesk':   { suggestions: ['Intercom', 'Ada', 'Kustomer', 'Maven AGI'] },
+        'intercom':  { suggestions: ['Zendesk', 'Ada', 'Maven AGI', 'Kustomer', 'Freshdesk'] },
+        'ada':       { suggestions: ['Intercom Fin', 'Zendesk AI', 'Maven AGI', 'Kustomer'] },
+        'kustomer':  { suggestions: ['Zendesk', 'Intercom', 'Ada', 'Freshdesk'] },
+        'freshdesk': { suggestions: ['Zendesk', 'Intercom', 'Kustomer', 'Help Scout'] },
+        // DevTools / Productivity
+        'linear':    { suggestions: ['Jira', 'Asana', 'Shortcut', 'ClickUp'] },
+        'jira':      { suggestions: ['Linear', 'Asana', 'ClickUp', 'Shortcut'] },
+        'notion':    { suggestions: ['Confluence', 'Coda', 'ClickUp', 'Obsidian'] },
+        'figma':     { suggestions: ['Sketch', 'Adobe XD', 'Penpot', 'InVision'] },
+        // SaaS CRM
+        'hubspot':   { suggestions: ['Salesforce', 'Pipedrive', 'Marketo', 'Zoho CRM'] },
+        'salesforce':{ suggestions: ['HubSpot', 'Pipedrive', 'Microsoft Dynamics'] },
+        'pipedrive': { suggestions: ['HubSpot', 'Salesforce', 'Close.io', 'Copper'] },
+        // Payments
+        'stripe':    { suggestions: ['Paddle', 'Braintree', 'Adyen', 'Square'] },
+        'paddle':    { suggestions: ['Stripe', 'Lemon Squeezy', 'FastSpring'] },
+        // Analytics
+        'mixpanel':  { suggestions: ['Amplitude', 'Heap', 'PostHog', 'FullStory'] },
+        'amplitude': { suggestions: ['Mixpanel', 'Heap', 'PostHog', 'Segment'] },
+        'posthog':   { suggestions: ['Mixpanel', 'Amplitude', 'Heap', 'Segment'] }
+    };
+
+    function getSuggestions(inputVal) {
+        if (!inputVal || inputVal.length < 2) return [];
+        var lower = inputVal.toLowerCase()
+            .replace(/^https?:\/\/(www\.)?/, '')
+            .replace(/\.(com|io|ai|co|net|org|app|dev)(\/.*)?$/, '')
+            .replace(/[^a-z0-9]/g, '');
+
+        // Direct match
+        if (COMPETITOR_MAP[lower]) {
+            return COMPETITOR_MAP[lower].suggestions;
+        }
+        // Partial match
+        for (var key in COMPETITOR_MAP) {
+            if (key.indexOf(lower) !== -1 || lower.indexOf(key) !== -1) {
+                return COMPETITOR_MAP[key].suggestions;
+            }
+        }
+        return [];
+    }
+
+    function renderSuggestions(idx) {
+        var input = document.getElementById('cInput' + idx);
+        var container = document.getElementById('cSug' + idx);
+        var label = document.getElementById('cSugLabel' + idx);
+        var val = input.value.trim();
+        var suggestions = getSuggestions(val);
+
+        // Filter out suggestions already used in other inputs
+        var usedVals = [];
+        [1,2,3].forEach(function(i) {
+            if (i !== idx) {
+                var v = document.getElementById('cInput' + i).value.trim().toLowerCase();
+                if (v) usedVals.push(v);
+            }
+        });
+
+        suggestions = suggestions.filter(function(s) {
+            return !usedVals.some(function(u) {
+                return u.indexOf(s.toLowerCase()) !== -1 || s.toLowerCase().indexOf(u) !== -1;
+            });
+        }).slice(0, 4);
+
+        if (suggestions.length === 0) {
+            container.innerHTML = '';
+            label.style.display = 'none';
+            return;
+        }
+
+        label.style.display = 'block';
+        container.innerHTML = suggestions.map(function(s) {
+            return '<button class="suggestion-pill" onclick="applySuggestion(' + idx + ', \'' + s.replace(/'/g, "\\'") + '\')">' + s + '</button>';
+        }).join('');
+    }
+
+    function applySuggestion(idx, name) {
+        // Find an empty slot (starting from idx+1, then idx itself if it's empty)
+        var target = null;
+        var slots = [1, 2, 3];
+        // Try to fill the next empty slot after current
+        var remaining = slots.filter(function(i) {
+            return !document.getElementById('cInput' + i).value.trim();
+        });
+        if (remaining.length > 0) {
+            target = remaining[0];
+        } else {
+            target = idx;
+        }
+        document.getElementById('cInput' + target).value = name;
+        renderSuggestions(target);
+        // Re-render this slot's suggestions too
+        renderSuggestions(idx);
+    }
+
+    // Wire up input events
+    [1, 2, 3].forEach(function(i) {
+        var input = document.getElementById('cInput' + i);
+        if (!input) return;
+        input.addEventListener('input', function() { renderSuggestions(i); });
+        input.addEventListener('blur', function() {
+            setTimeout(function() { renderSuggestions(i); }, 150);
+        });
+    });
+
+    // ── Wizard State ──────────────────────────────────
+    var wizardCurrentStep = 1;
+    var wizardData = { competitors: [], email: '', delivery: 'email' };
+
+    function checkOnboarding() {
+        api('/api/auth/me').then(function(data) {
+            var user = data.user || {};
+
+            // Update nav email (the token is not a JWT, so loadUserInfo() doesn't work)
+            if (user.email) {
+                document.getElementById('userEmail').textContent = user.email;
+            }
+
+            if (user.onboarding_completed === false) {
+                // Pre-fill delivery email
+                var emailInput = document.getElementById('wEmailInput');
+                if (emailInput && user.email) {
+                    emailInput.value = user.email;
+                }
+                document.getElementById('wizardOverlay').classList.add('active');
+            }
+        }).catch(function() {
+            // Don't block dashboard on error
+        });
+    }
+
+    function wizardGoToStep(step) {
+        // Update dots
+        [1,2,3].forEach(function(i) {
+            var dot = document.getElementById('wDot' + i);
+            var stepEl = document.getElementById('wStep' + i);
+            if (i < step) {
+                dot.className = 'wizard-dot done';
+            } else if (i === step) {
+                dot.className = 'wizard-dot active';
+            } else {
+                dot.className = 'wizard-dot';
+            }
+            if (stepEl) stepEl.className = 'wizard-step' + (i === step ? ' active' : '');
+        });
+        wizardCurrentStep = step;
+    }
+
+    function wizardStep1Next() {
+        // Collect competitors
+        var comps = [];
+        [1,2,3].forEach(function(i) {
+            var val = document.getElementById('cInput' + i).value.trim();
+            if (val) {
+                // Detect if it's a URL or just a name
+                var isUrl = val.indexOf('.') !== -1 && !val.includes(' ');
+                var website = isUrl ? (val.startsWith('http') ? val : 'https://' + val) : null;
+                var name = isUrl ? val.replace(/^https?:\/\/(www\.)?/, '').replace(/\.(com|io|ai|co|net|org|app|dev)(\/.*)?$/, '') : val;
+                // Title case name
+                name = name.charAt(0).toUpperCase() + name.slice(1);
+                comps.push({ name: name, website: website || val });
+            }
+        });
+
+        if (comps.length === 0) {
+            showToast('Add at least one competitor to continue', true);
+            return;
+        }
+
+        wizardData.competitors = comps;
+        wizardGoToStep(2);
+    }
+
+    function selectDelivery(type) {
+        wizardData.delivery = type;
+        document.getElementById('toggleEmail').classList.toggle('active', type === 'email');
+    }
+
+    function wizardStep2Next() {
+        var emailVal = document.getElementById('wEmailInput').value.trim();
+        if (!emailVal || !emailVal.includes('@')) {
+            showToast('Please enter a valid email address', true);
+            return;
+        }
+        wizardData.email = emailVal;
+
+        // Build competitor summary chips
+        var html = '';
+        wizardData.competitors.forEach(function(c) {
+            html += '<div class="comp-chip"><div class="comp-chip-dot"></div>' + escapeHtml(c.name) + '</div>';
+        });
+        document.getElementById('wCompSummary').innerHTML = html;
+
+        wizardGoToStep(3);
+    }
+
+    var scanLaunched = false;
+
+    function launchScan() {
+        if (scanLaunched) return;
+        scanLaunched = true;
+
+        var btn = document.getElementById('wLaunchBtn');
+        var backBtn = document.getElementById('wBackFromStep3');
+        btn.disabled = true;
+        btn.textContent = 'Setting up...';
+        backBtn.disabled = true;
+
+        var stages = [
+            { pct: 15, label: 'Creating competitor profiles...', icon: '📋' },
+            { pct: 35, label: 'Setting up monitoring...', icon: '⚙️' },
+            { pct: 60, label: 'Scanning competitor sites...', icon: '🔍' },
+            { pct: 80, label: 'Analyzing intelligence...', icon: '🧠' },
+            { pct: 95, label: 'Building your first brief...', icon: '📄' }
+        ];
+
+        var stageIdx = 0;
+
+        function advanceStage() {
+            if (stageIdx >= stages.length) return;
+            var s = stages[stageIdx];
+            document.getElementById('wProgressFill').style.width = s.pct + '%';
+            document.getElementById('wProgressLabel').textContent = s.label;
+            document.getElementById('wGenIcon').textContent = s.icon;
+            stageIdx++;
+        }
+
+        advanceStage();
+        var stageInterval = setInterval(function() {
+            if (stageIdx < stages.length) {
+                advanceStage();
+            }
+        }, 1800);
+
+        // Call setup API
+        api('/api/onboarding/setup', {
+            method: 'POST',
+            body: { competitors: wizardData.competitors, email: wizardData.email }
+        }).then(function(data) {
+            if (data.error) {
+                clearInterval(stageInterval);
+                showToast(data.error, true);
+                btn.disabled = false;
+                btn.textContent = '🚀 Launch Spyglass';
+                backBtn.disabled = false;
+                scanLaunched = false;
+                return;
+            }
+
+            // Mark onboarding complete
+            return api('/api/onboarding/complete', { method: 'POST' });
+        }).then(function() {
+            clearInterval(stageInterval);
+            document.getElementById('wProgressFill').style.width = '100%';
+            document.getElementById('wProgressLabel').textContent = '✅ Setup complete! Loading dashboard...';
+            document.getElementById('wGenIcon').textContent = '🎯';
+            btn.textContent = 'Opening dashboard...';
+
+            setTimeout(function() {
+                document.getElementById('wizardOverlay').classList.remove('active');
+                scanLaunched = false;
+                // Reload data on the dashboard
+                loadOverview();
+                loadStats();
+                showToast('🎉 Spyglass is watching your competitors!');
+            }, 1200);
+        }).catch(function(err) {
+            clearInterval(stageInterval);
+            showToast('Something went wrong. Please try again.', true);
+            btn.disabled = false;
+            btn.textContent = '🚀 Launch Spyglass';
+            backBtn.disabled = false;
+            scanLaunched = false;
+
+            // Still complete onboarding so we don't keep re-prompting
+            api('/api/onboarding/complete', { method: 'POST' }).catch(function() {});
+        });
+    }
+
+    function skipWizard() {
+        api('/api/onboarding/complete', { method: 'POST' }).catch(function() {});
+        document.getElementById('wizardOverlay').classList.remove('active');
+    }
+    </script>
+</body>
+</html>
