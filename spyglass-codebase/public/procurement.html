@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upstream — Procurement Intelligence</title>
+  <style>
+    :root {
+      --bg: #0d0f12;
+      --surface: #161a20;
+      --surface2: #1e242d;
+      --border: #252b35;
+      --text: #e8eaf0;
+      --muted: #7a8494;
+      --accent: #3d8ef0;
+      --accent-dim: rgba(61,142,240,0.12);
+      --green: #22c55e;
+      --green-dim: rgba(34,197,94,0.12);
+      --yellow: #f59e0b;
+      --yellow-dim: rgba(245,158,11,0.12);
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,0.12);
+      --orange: #f97316;
+      --orange-dim: rgba(249,115,22,0.12);
+      --purple: #a855f7;
+      --purple-dim: rgba(168,85,247,0.10);
+      --radius: 10px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+    /* ── Top nav ── */
+    .nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 100; }
+    .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+    .nav-logo { width: 28px; height: 28px; background: linear-gradient(135deg, #3d8ef0, #a855f7); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .nav-subtitle { color: var(--muted); font-size: 12px; font-weight: 400; }
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #2d7ee0; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-red { background: var(--red-dim); color: var(--red); }
+    .badge-orange { background: var(--orange-dim); color: var(--orange); }
+    .badge-yellow { background: var(--yellow-dim); color: var(--yellow); }
+    .badge-green { background: var(--green-dim); color: var(--green); }
+    .badge-blue { background: var(--accent-dim); color: var(--accent); }
+    .badge-purple { background: var(--purple-dim); color: var(--purple); }
+
+    /* ── Layout ── */
+    .container { max-width: 1280px; margin: 0 auto; padding: 28px; }
+    .header { margin-bottom: 28px; }
+    .header-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
+    .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
+    .header-meta { color: var(--muted); font-size: 13px; margin-top: 4px; display: flex; gap: 18px; }
+    .header-meta span { display: flex; align-items: center; gap: 4px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; }
+    .dot.pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.4; } }
+
+    /* ── Grid ── */
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .col-span-2 { grid-column: span 2; }
+    .col-span-3 { grid-column: span 3; }
+
+    /* ── Cards ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
+    .card-action { font-size: 12px; color: var(--accent); cursor: pointer; }
+
+    /* ── KPI tiles ── */
+    .kpi { display: flex; flex-direction: column; gap: 6px; }
+    .kpi-value { font-size: 28px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+    .kpi-label { font-size: 12px; color: var(--muted); }
+    .kpi-delta { font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 3px; }
+    .kpi-delta.bad { color: var(--red); }
+    .kpi-delta.warn { color: var(--yellow); }
+    .kpi-delta.good { color: var(--green); }
+
+    /* ── Health score ring ── */
+    .health-ring-wrap { display: flex; align-items: center; gap: 20px; }
+    .health-ring { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
+    .health-ring svg { transform: rotate(-90deg); }
+    .health-ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .health-score-num { font-size: 22px; font-weight: 800; color: var(--orange); line-height: 1; }
+    .health-score-sub { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .health-details { flex: 1; }
+    .health-detail-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+    .health-detail-row:last-child { border: none; }
+    .health-detail-label { color: var(--muted); }
+    .health-detail-val { font-weight: 600; }
+    .health-detail-val.bad { color: var(--red); }
+    .health-detail-val.warn { color: var(--yellow); }
+    .health-detail-val.good { color: var(--green); }
+
+    /* ── Alert cards ── */
+    .alerts-list { display: flex; flex-direction: column; gap: 12px; }
+    .alert-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; position: relative; overflow: hidden; cursor: pointer; transition: border-color 0.15s; }
+    .alert-card:hover { border-color: var(--accent); }
+    .alert-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+    .alert-card.critical::before { background: var(--red); }
+    .alert-card.high::before { background: var(--orange); }
+    .alert-card.medium::before { background: var(--yellow); }
+    .alert-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .alert-title { font-size: 13px; font-weight: 600; line-height: 1.4; }
+    .alert-impact { text-align: right; flex-shrink: 0; }
+    .alert-impact-value { font-size: 18px; font-weight: 700; color: var(--red); line-height: 1; }
+    .alert-impact-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+    .alert-desc { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 10px; }
+    .alert-rec { background: rgba(61,142,240,0.07); border: 1px solid rgba(61,142,240,0.2); border-radius: 6px; padding: 10px 12px; font-size: 12px; color: #9cb8e8; line-height: 1.5; }
+    .alert-rec strong { color: var(--accent); }
+    .alert-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+    .alert-meta { font-size: 11px; color: var(--muted); display: flex; gap: 10px; }
+    .alert-actions { display: flex; gap: 8px; }
+
+    /* ── Vendor benchmark table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .price-diff.over { color: var(--red); font-weight: 600; }
+    .price-diff.under { color: var(--green); font-weight: 600; }
+    .price-diff.neutral { color: var(--muted); }
+    .savings-tag { display: inline-flex; align-items: center; background: var(--green-dim); color: var(--green); padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+
+    /* ── Channel margin bars ── */
+    .channel-list { display: flex; flex-direction: column; gap: 14px; }
+    .channel-row { display: flex; flex-direction: column; gap: 5px; }
+    .channel-label { display: flex; justify-content: space-between; font-size: 12px; }
+    .channel-name { font-weight: 500; }
+    .channel-pct { font-weight: 700; }
+    .channel-pct.good { color: var(--green); }
+    .channel-pct.warn { color: var(--yellow); }
+    .channel-pct.bad { color: var(--red); }
+    .bar-track { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+    .bar-fill.green { background: var(--green); }
+    .bar-fill.yellow { background: var(--yellow); }
+    .bar-fill.red { background: var(--red); }
+    .bar-fill.orange { background: var(--orange); }
+    .channel-detail { font-size: 11px; color: var(--muted); }
+
+    /* ── Price trend sparkline ── */
+    .sparkline-wrap { display: flex; flex-direction: column; gap: 14px; }
+    .spark-item { display: flex; align-items: center; gap: 12px; }
+    .spark-label { font-size: 12px; color: var(--muted); width: 100px; flex-shrink: 0; }
+    .spark-svg { flex: 1; height: 32px; }
+    .spark-current { font-size: 12px; font-weight: 700; width: 52px; text-align: right; flex-shrink: 0; }
+    .spark-current.up { color: var(--red); }
+    .spark-current.stable { color: var(--green); }
+
+    /* ── Recommendations ── */
+    .rec-list { display: flex; flex-direction: column; gap: 12px; }
+    .rec-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .rec-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; gap: 12px; }
+    .rec-title { font-size: 13px; font-weight: 600; line-height: 1.4; }
+    .rec-savings { text-align: right; flex-shrink: 0; }
+    .rec-savings-val { font-size: 15px; font-weight: 700; color: var(--green); }
+    .rec-savings-label { font-size: 10px; color: var(--muted); }
+    .rec-desc { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 12px; }
+    .rec-steps { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .rec-step { display: flex; gap: 10px; font-size: 12px; }
+    .rec-step-num { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-dim); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+    .rec-step-text { color: var(--muted); line-height: 1.5; padding-top: 1px; }
+    .rec-step-text strong { color: var(--text); }
+    .rec-footer { display: flex; align-items: center; justify-content: space-between; }
+    .rec-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-accept { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .btn-accept:hover { background: rgba(34,197,94,0.2); }
+
+    /* ── Menu engineering ── */
+    .menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .menu-quadrant { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .quadrant-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+    .quadrant-label.star { color: var(--green); }
+    .quadrant-label.plow { color: var(--orange); }
+    .quadrant-label.puzzle { color: var(--purple); }
+    .quadrant-label.dog { color: var(--muted); }
+    .menu-item-row { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; }
+    .menu-item-name { color: var(--text); }
+    .menu-item-margin { color: var(--muted); }
+
+    /* ── Acquisition pitch banner ── */
+    .acq-banner { background: linear-gradient(135deg, rgba(61,142,240,0.08), rgba(168,85,247,0.08)); border: 1px solid rgba(61,142,240,0.2); border-radius: var(--radius); padding: 24px 28px; margin-top: 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .acq-left { flex: 1; }
+    .acq-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .acq-desc { font-size: 13px; color: var(--muted); line-height: 1.6; max-width: 600px; }
+    .acq-stats { display: flex; gap: 32px; flex-shrink: 0; }
+    .acq-stat { text-align: center; }
+    .acq-stat-val { font-size: 24px; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .acq-stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 2px; }
+
+    /* ── Loader ── */
+    .loader { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text { color: var(--muted); font-size: 14px; }
+
+    /* ── Error ── */
+    .error-state { text-align: center; padding: 60px 24px; }
+    .error-icon { font-size: 36px; margin-bottom: 12px; }
+    .error-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .error-desc { color: var(--muted); font-size: 13px; line-height: 1.6; max-width: 420px; margin: 0 auto 20px; }
+
+    /* ── Confidence pill ── */
+    .conf { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); }
+    .conf-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+
+    @media (max-width: 900px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: 1fr; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .acq-banner { flex-direction: column; }
+      .acq-stats { justify-content: center; }
+      .menu-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">↑</div>
+    <div>
+      <div>Upstream</div>
+      <div class="nav-subtitle">Procurement Intelligence</div>
+    </div>
+  </div>
+  <div class="nav-actions">
+    <span class="conf"><span class="conf-dot pulse"></span>Live scanning</span>
+    <button class="btn btn-ghost" onclick="triggerScan()">Run Analysis</button>
+    <button class="btn btn-primary" onclick="window.location='/dashboard.html'">← Dashboard</button>
+  </div>
+</nav>
+
+<div id="app">
+  <div class="loader">
+    <div class="spinner"></div>
+    <div class="loader-text">Loading procurement intelligence…</div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let state = { restaurant: null, alerts: [], recommendations: [], snapshot: null };
+
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    // Try to load demo restaurant data
+    const res = await fetch('/api/procurement/demo');
+    const data = await res.json();
+
+    if (!res.ok || !data.restaurant) {
+      // Seed demo data first
+      const seedRes = await fetch('/api/procurement/demo/seed', { method: 'POST' });
+      if (!seedRes.ok) throw new Error('Demo seed failed');
+      const seeded = await seedRes.json();
+      await loadRestaurant(seeded.restaurantId);
+    } else {
+      state.restaurant = data.restaurant;
+      state.alerts = data.alerts || [];
+      state.recommendations = data.recommendations || [];
+      state.snapshot = data.snapshot || null;
+      render();
+    }
+  } catch (err) {
+    // Render with realistic mock data for pure-static demo
+    renderWithMockData();
+  }
+}
+
+async function loadRestaurant(id) {
+  const r = await fetch(`/api/procurement/restaurants/${id}/dashboard`);
+  const data = await r.json();
+  state = { ...data };
+  render();
+}
+
+async function triggerScan() {
+  if (!state.restaurant) return;
+  const btn = document.querySelector('.btn-ghost');
+  btn.textContent = 'Scanning…';
+  btn.disabled = true;
+  await fetch(`/api/procurement/restaurants/${state.restaurant.id}/analyze`, { method: 'POST' });
+  await loadRestaurant(state.restaurant.id);
+  btn.textContent = 'Run Analysis';
+  btn.disabled = false;
+}
+
+// ── Mock data (used if no DB is connected) ────────────────────────────────────
+function getMockData() {
+  return {
+    restaurant: {
+      name: 'Harvest & Co.',
+      location: 'Austin, TX · 3 locations',
+      target_food_cost_pct: 28,
+      monthly_revenue_estimate: 182000,
+      pos_system: 'toast',
+      delivery_platforms: ['doordash', 'ubereats']
+    },
+    snapshot: { health_score: 54, food_cost_pct: 34.2, delivery_mix_pct: 38, net_margin_pct: 22.4 },
+    alerts: [
+      {
+        id: '1', alert_type: 'vendor_overcharge', severity: 'critical',
+        title: 'Sysco Austin overcharging 54% on Avocados — $1,240/month overage',
+        description: 'You are paying $1.85/lb for Hass Avocados from Sysco Austin. Current USDA AMS market price for Texas region is $1.20/lb — a 54% premium. At ~1,920 lbs/month across all three locations, this costs $1,248 extra per month. US Foods Central TX quotes $1.22/lb.',
+        affected_item: 'Avocado (Hass) — Sysco Austin',
+        financial_impact_monthly: 1240,
+        confidence_score: 0.96,
+        ai_recommendation: '<strong>Immediate action:</strong> Schedule a price review call with Mark Delgado (Sysco rep) referencing the US Foods quote at $1.22/lb. If Sysco cannot match within 5% by end of week, split avocado volume 60/40 with US Foods. Annual savings at full switch: $14,880.'
+      },
+      {
+        id: '2', alert_type: 'recipe_cost_drift', severity: 'high',
+        title: '"Avocado Toast" food cost at 41.4% — 13.4pp above 28% target ($2,100/mo)',
+        description: 'Avocado Toast was priced at $14.00 in 2022 when avocado cost was $0.92/lb. At today\'s $1.85/lb (Sysco) the per-plate ingredient cost is $5.80, yielding 41.4% food cost vs your 28% target. You are serving 1,260 plates/month at a $1.67/plate loss vs target. Break-even price at current costs: $20.71.',
+        affected_item: 'Avocado Toast',
+        financial_impact_monthly: 2100,
+        confidence_score: 0.93,
+        ai_recommendation: '<strong>Two paths:</strong> (1) Reprice to $18.50 (market-acceptable; still under break-even). (2) Switch vendor to US Foods at $1.22/lb — drops per-plate cost to $3.72 and food cost to 26.6%. Option 2 solves both Alert #1 and Alert #2 simultaneously.'
+      },
+      {
+        id: '3', alert_type: 'delivery_erosion', severity: 'high',
+        title: 'DoorDash orders yielding 8.2% net margin vs 26.4% dine-in — $3,800/mo gap',
+        description: 'Delivery channels represent 38% of your revenue ($69,160/mo). DoorDash\'s 30% commission collapses your net margin to 8.2% vs 26.4% on dine-in. If this delivery revenue were served dine-in, it would generate an additional $3,842/month in gross profit.',
+        affected_item: 'delivery_doordash',
+        financial_impact_monthly: 3800,
+        confidence_score: 0.91,
+        ai_recommendation: '<strong>Implement delivery menu pricing:</strong> Raise all DoorDash/UberEats prices 18% to offset commissions. DoorDash data shows <8% churn on increases ≤20%. Additionally, negotiate DoorDash Preferred Plus tier — Harvest & Co.\'s $15K+ monthly GMV qualifies for 20-25% commission.'
+      },
+      {
+        id: '4', alert_type: 'order_inefficiency', severity: 'medium',
+        title: 'Sysco order fragmentation: 10 orders averaging $310 — missing $500 volume threshold',
+        description: 'In the last 30 days you placed 10 separate produce orders with Sysco averaging $310 each — below the $500 threshold for volume pricing (3% rebate). Consolidating to 5 orders of ~$620 each would have saved $680 in discounts + reduced delivery surcharges.',
+        affected_item: 'Sysco Austin',
+        financial_impact_monthly: 680,
+        confidence_score: 0.84,
+        ai_recommendation: '<strong>Shift to Mon/Thu ordering cadence.</strong> Use the consolidation template in Recommendations to pre-build standing orders. Conduct cold storage audit first to confirm capacity for larger deliveries.'
+      }
+    ],
+    vendorBenchmark: [
+      { ingredient: 'Avocado (Hass)', unit: 'lb', sysco: 1.85, usfoods: 1.22, gordon: 1.25, market: 1.20, overcharge: 54.2, monthly_cost_diff: 1240 },
+      { ingredient: 'Roma Tomato',   unit: 'lb', sysco: 1.18, usfoods: 0.97, gordon: null,  market: 0.95, overcharge: 24.2, monthly_cost_diff: 218 },
+      { ingredient: 'Arugula',       unit: 'lb', sysco: 3.95, usfoods: null,  gordon: 3.42, market: 3.40, overcharge: 16.2, monthly_cost_diff: 142 },
+      { ingredient: 'Mixed Greens',  unit: 'lb', sysco: 3.10, usfoods: 2.85, gordon: null,  market: 2.80, overcharge: 10.7, monthly_cost_diff: 88 },
+      { ingredient: 'Lemon',         unit: 'ea', sysco: 0.38, usfoods: 0.29, gordon: null,  market: 0.28, overcharge: 35.7, monthly_cost_diff: 54 }
+    ],
+    channels: [
+      { channel: 'Dine-In',       revenue: 112840, margin_pct: 26.4, commission: 0,   orders: 4820 },
+      { channel: 'DoorDash',      revenue: 51020,  margin_pct: 8.2,  commission: 30,  orders: 2268 },
+      { channel: 'UberEats',      revenue: 18140,  margin_pct: 11.4, commission: 27,  orders: 806 }
+    ],
+    priceHistory: [
+      { ingredient: 'Avocado',   trend: [0.92, 0.98, 1.10, 1.24, 1.35, 1.52, 1.68, 1.78, 1.82, 1.85], direction: 'up', current: '$1.85/lb' },
+      { ingredient: 'Salmon',    trend: [8.20, 8.20, 8.30, 8.40, 8.40, 8.50, 8.50, 8.60, 8.70, 8.80], direction: 'up', current: '$8.80/lb' },
+      { ingredient: 'Chicken',   trend: [3.10, 3.15, 3.20, 3.18, 3.20, 3.22, 3.25, 3.28, 3.30, 3.35], direction: 'stable', current: '$3.35/lb' },
+      { ingredient: 'Mixed Greens', trend: [2.60, 2.65, 2.70, 2.75, 2.78, 2.80, 2.82, 2.85, 2.88, 3.10], direction: 'up', current: '$3.10/lb' }
+    ],
+    recommendations: [
+      {
+        category: 'vendor_switch', effort: 'low', savings: 1240,
+        title: 'Switch avocado sourcing to US Foods — $14,880/year savings',
+        desc: 'Sysco Austin is billing $1.85/lb vs US Foods Central TX at $1.22/lb. A full switch saves $1,240/month with no recipe or quality changes.',
+        steps: ['Call Lisa Chen at US Foods (lchen@usfoods.com) for a formal quote', '2-week parallel trial — order avocados from both vendors to verify quality', 'Give Sysco one opportunity to match — they may drop to $1.30', 'Execute switch. Update PO template to default to US Foods']
+      },
+      {
+        category: 'recipe_reprice', effort: 'low', savings: 2100,
+        title: 'Reprice Avocado Toast to $18 — recovers $2,100/mo at current food costs',
+        desc: 'With avocados at market rate, Avocado Toast has a $20.71 break-even at 28% target. Reprice to $18.00 substantially closes the gap.',
+        steps: ['Execute vendor switch first — resolves cost without repricing', 'If delayed: update Toast POS menu price to $18.00 for dine-in/takeout', 'Set delivery price to $21.00 on DoorDash/UberEats menus to offset 30% commission']
+      },
+      {
+        category: 'channel_rebalancing', effort: 'low', savings: 1400,
+        title: 'Apply 15% delivery surcharge on DoorDash/UberEats — $1,400/mo recovery',
+        desc: 'Add a 15% delivery-specific price increase on all delivery menu items. Partially offsets the 30%/27% commissions while keeping prices competitive.',
+        steps: ['Log into DoorDash Merchant Portal → enable "Menu Pricing Customization"', 'Increase all item prices by 15% on both delivery menus (30 min task)', 'Monitor for 2 weeks — acceptable churn is <8% per DoorDash benchmarks', 'Contact DoorDash rep re: Preferred Plus tier at $15K+ monthly GMV']
+      },
+      {
+        category: 'order_consolidation', effort: 'medium', savings: 680,
+        title: 'Consolidate Sysco orders Mon/Thu — $680/mo in volume discounts',
+        desc: 'Shift from 10 ad-hoc micro-orders to twice-weekly consolidated orders, pushing average order value above the $500 volume-discount threshold.',
+        steps: ['Cold storage audit — confirm capacity for 2 large deliveries/week', 'Build a standing Mon/Thu order template in Sysco Order Management', 'Brief kitchen team on new cadence — planning window extends from 1→3 days', 'Request Sysco volume rebate documentation in writing']
+      }
+    ],
+    menuEngineering: {
+      stars:   [{ name: 'Harvest Grain Bowl', cm: 12.58 }, { name: 'Pan-Seared Salmon', cm: 19.60 }],
+      plows:   [{ name: 'Avocado Toast', cm: 8.20 }, { name: 'Grilled Chicken Salad', cm: 11.20 }],
+      puzzles: [{ name: 'Wild Arugula & Feta', cm: 8.28 }],
+      dogs:    [{ name: 'Farm Egg Toast', cm: 8.44 }]
+    }
+  };
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const data = (state.restaurant && state.alerts.length)
+    ? { restaurant: state.restaurant, alerts: state.alerts, recommendations: state.recommendations, snapshot: state.snapshot }
+    : null;
+  const d = data ? { ...data, ...getMockData(), restaurant: data.restaurant, alerts: data.alerts, snapshot: data.snapshot } : getMockData();
+  renderFull(d);
+}
+
+function renderWithMockData() { renderFull(getMockData()); }
+
+function renderFull(d) {
+  const totalImpact = d.alerts.reduce((s, a) => s + (a.financial_impact_monthly || 0), 0);
+  const hs = d.snapshot?.health_score || 54;
+  const hsColor = hs >= 75 ? '#22c55e' : hs >= 50 ? '#f97316' : '#ef4444';
+
+  document.getElementById('app').innerHTML = `
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-top">
+          <div>
+            <h1>${d.restaurant.name}</h1>
+            <div style="margin-top:6px;display:flex;gap:10px;align-items:center">
+              <span class="badge badge-blue">${capitalize(d.restaurant.pos_system || 'unknown')} POS</span>
+              ${(d.restaurant.delivery_platforms || ['doordash','ubereats']).map(p => `<span class="badge badge-purple">${capitalize(p)}</span>`).join('')}
+              <span class="badge badge-orange">4 Active Alerts</span>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:12px;color:var(--muted)">${d.restaurant.location || 'Austin, TX'}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:3px">Last scan: <span style="color:var(--green)">just now</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="grid-4" style="margin-bottom:24px">
+        <div class="card">
+          <div class="kpi">
+            <div class="kpi-label">Monthly Opportunity</div>
+            <div class="kpi-value" style="color:var(--red)">$${totalImpact.toLocaleString()}</div>
+            <div class="kpi-delta bad">↑ $${(totalImpact * 12).toLocaleString()}/year recoverable</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="kpi">
+            <div class="kpi-label">Actual Food Cost</div>
+            <div class="kpi-value" style="color:var(--orange)">${d.snapshot?.food_cost_pct || 34.2}%</div>
+            <div class="kpi-delta warn">↑ ${((d.snapshot?.food_cost_pct || 34.2) - (d.restaurant.target_food_cost_pct || 28)).toFixed(1)}pp above ${d.restaurant.target_food_cost_pct || 28}% target</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="kpi">
+            <div class="kpi-label">Delivery Revenue Mix</div>
+            <div class="kpi-value" style="color:var(--yellow)">${d.snapshot?.delivery_mix_pct || 38}%</div>
+            <div class="kpi-delta warn">High commission drag on margins</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="kpi">
+            <div class="kpi-label">Net Margin (after fees)</div>
+            <div class="kpi-value" style="color:var(--yellow)">${d.snapshot?.net_margin_pct || 22.4}%</div>
+            <div class="kpi-delta warn">Target: 28%+ with fixes applied</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Health + Alerts -->
+      <div class="grid-2" style="margin-bottom:24px">
+        <!-- Health Score -->
+        <div class="card" style="display:flex;flex-direction:column;gap:20px">
+          <div class="card-header" style="margin-bottom:0">
+            <div class="card-title">Margin Health Score</div>
+            <span class="badge badge-orange">Action Required</span>
+          </div>
+          <div class="health-ring-wrap">
+            <div class="health-ring">
+              <svg width="88" height="88" viewBox="0 0 88 88">
+                <circle cx="44" cy="44" r="36" fill="none" stroke="var(--border)" stroke-width="8"/>
+                <circle cx="44" cy="44" r="36" fill="none" stroke="${hsColor}" stroke-width="8"
+                  stroke-dasharray="${2 * Math.PI * 36}" stroke-dashoffset="${2 * Math.PI * 36 * (1 - hs / 100)}"
+                  stroke-linecap="round"/>
+              </svg>
+              <div class="health-ring-label">
+                <div class="health-score-num" style="color:${hsColor}">${hs}</div>
+                <div class="health-score-sub">/ 100</div>
+              </div>
+            </div>
+            <div class="health-details">
+              <div class="health-detail-row"><span class="health-detail-label">Vendor pricing</span><span class="health-detail-val bad">Critical</span></div>
+              <div class="health-detail-row"><span class="health-detail-label">Recipe costing</span><span class="health-detail-val warn">2 drifted</span></div>
+              <div class="health-detail-row"><span class="health-detail-label">Channel margins</span><span class="health-detail-val warn">Eroding</span></div>
+              <div class="health-detail-row"><span class="health-detail-label">Order efficiency</span><span class="health-detail-val warn">Fragmented</span></div>
+              <div class="health-detail-row"><span class="health-detail-label">Portion control</span><span class="health-detail-val good">On target</span></div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.6;padding:12px;background:var(--surface2);border-radius:8px">
+            <strong style="color:var(--text)">Executive summary:</strong> Harvest & Co. has $${totalImpact.toLocaleString()}/month in recoverable margin leaks — $${(totalImpact * 12).toLocaleString()} annualized. The highest-priority fix (vendor switch for avocados) resolves two alerts simultaneously. Full implementation of all 4 recommendations recovers 70%+ within 45 days.
+          </div>
+        </div>
+
+        <!-- Vendor Benchmark -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Vendor Price Benchmark</div>
+            <span style="font-size:11px;color:var(--muted)">vs USDA AMS market rate</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Ingredient</th>
+                <th>Sysco</th>
+                <th>US Foods</th>
+                <th>GFS</th>
+                <th>Market</th>
+                <th>Overcharge</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(d.vendorBenchmark || []).map(r => `
+                <tr>
+                  <td style="font-weight:500">${r.ingredient}</td>
+                  <td style="color:var(--red)">$${r.sysco}</td>
+                  <td>${r.usfoods ? `<span class="savings-tag">$${r.usfoods}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+                  <td>${r.gordon ? `$${r.gordon}` : '<span style="color:var(--muted)">—</span>'}</td>
+                  <td style="color:var(--muted)">$${r.market}</td>
+                  <td><span class="badge badge-red">+${r.overcharge}%</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div style="margin-top:14px;font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:space-between">
+            <span>Total vendor overcharge</span>
+            <span style="font-weight:700;color:var(--red)">$1,742/month</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <div class="card-title">Active Margin Leaks</div>
+          <span style="font-size:12px;color:var(--muted)">Detected by Upstream autonomous scan · ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+        </div>
+        <div class="alerts-list">
+          ${d.alerts.map(a => renderAlert(a)).join('')}
+        </div>
+      </div>
+
+      <!-- Channel Margins + Price History -->
+      <div class="grid-2" style="margin-bottom:24px">
+        <!-- Channel margins -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Channel Margin Analysis</div>
+            <span class="badge badge-yellow">Delivery drag active</span>
+          </div>
+          <div class="channel-list">
+            ${(d.channels || []).map(c => {
+              const cls = c.margin_pct >= 20 ? 'good' : c.margin_pct >= 12 ? 'warn' : 'bad';
+              const barClass = c.margin_pct >= 20 ? 'green' : c.margin_pct >= 12 ? 'yellow' : 'red';
+              return `
+                <div class="channel-row">
+                  <div class="channel-label">
+                    <span class="channel-name">${c.channel}</span>
+                    <span class="channel-pct ${cls}">${c.margin_pct}% margin</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill ${barClass}" style="width:${Math.min(100, c.margin_pct * 2.5)}%"></div>
+                  </div>
+                  <div class="channel-detail">$${c.revenue.toLocaleString()}/mo revenue · ${c.orders.toLocaleString()} orders${c.commission ? ` · ${c.commission}% commission` : ''}</div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          <div style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--muted)">
+            <strong style="color:var(--text)">Opportunity:</strong> If the 38% delivery revenue mix earned dine-in margins instead, gross profit would increase by <strong style="color:var(--green)">$3,842/month</strong>. Delivery-specific pricing closes ~35% of this gap.
+          </div>
+        </div>
+
+        <!-- Price history sparklines -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">18-Month Price Trends</div>
+            <span style="font-size:11px;color:var(--muted)">Invoice data</span>
+          </div>
+          <div class="sparkline-wrap">
+            ${(d.priceHistory || []).map(p => renderSparkline(p)).join('')}
+          </div>
+          <div style="margin-top:16px;font-size:12px;color:var(--muted);line-height:1.6;padding:12px;background:var(--surface2);border-radius:8px">
+            <strong style="color:var(--red)">Avocado cost has risen 101%</strong> over 18 months while Avocado Toast menu price has been unchanged at $14.00. This single recipe accounts for 27% of the total margin leak.
+          </div>
+        </div>
+      </div>
+
+      <!-- Menu Engineering -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <div class="card-title">Menu Engineering Matrix</div>
+          <span style="font-size:11px;color:var(--muted)">Contribution margin × volume — last 30 days</span>
+        </div>
+        <div class="menu-grid">
+          <div class="menu-quadrant" style="border-color:rgba(34,197,94,0.3)">
+            <div class="quadrant-label star">★ Stars — high margin, high volume</div>
+            ${(d.menuEngineering?.stars || []).map(i => `<div class="menu-item-row"><span class="menu-item-name">${i.name}</span><span style="color:var(--green)">$${i.cm} CM</span></div>`).join('')}
+          </div>
+          <div class="menu-quadrant" style="border-color:rgba(249,115,22,0.3)">
+            <div class="quadrant-label plow">⚠ Plows — high volume, low margin (reprice or re-engineer)</div>
+            ${(d.menuEngineering?.plows || []).map(i => `<div class="menu-item-row"><span class="menu-item-name">${i.name}</span><span style="color:var(--orange)">$${i.cm} CM</span></div>`).join('')}
+          </div>
+          <div class="menu-quadrant" style="border-color:rgba(168,85,247,0.3)">
+            <div class="quadrant-label puzzle">◆ Puzzles — high margin, low volume (market harder)</div>
+            ${(d.menuEngineering?.puzzles || []).map(i => `<div class="menu-item-row"><span class="menu-item-name">${i.name}</span><span style="color:var(--purple)">$${i.cm} CM</span></div>`).join('')}
+          </div>
+          <div class="menu-quadrant" style="border-color:rgba(122,132,148,0.3)">
+            <div class="quadrant-label dog">✕ Dogs — low margin, low volume (review for removal)</div>
+            ${(d.menuEngineering?.dogs || []).map(i => `<div class="menu-item-row"><span class="menu-item-name">${i.name}</span><span style="color:var(--muted)">$${i.cm} CM</span></div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-header">
+          <div class="card-title">AI Action Plan</div>
+          <span style="font-size:12px;color:var(--muted)">$${(d.recommendations || []).reduce((s,r) => s + r.savings, 0).toLocaleString()}/mo total recoverable</span>
+        </div>
+        <div class="rec-list">
+          ${(d.recommendations || []).map((r, i) => renderRec(r, i + 1)).join('')}
+        </div>
+      </div>
+
+      <!-- Acquisition banner -->
+      <div class="acq-banner">
+        <div class="acq-left">
+          <div class="acq-title">Upstream — Built for Strategic Acquisition</div>
+          <div class="acq-desc">
+            Upstream is the procurement intelligence layer missing from every restaurant technology platform. Toast integrates POS data but has no COGS intelligence. DoorDash sees delivery volume but cannot detect when a restaurant is bleeding margin. Upstream closes that gap — turning raw invoice, POS, and menu data into autonomous, actionable margin recovery at scale.
+          </div>
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+            <span class="badge badge-blue">Toast integration-ready</span>
+            <span class="badge badge-purple">DoorDash Merchant API</span>
+            <span class="badge badge-green">Clover Commerce SDK</span>
+            <span class="badge badge-orange">Multi-location</span>
+            <span class="badge" style="background:rgba(34,197,94,0.1);color:#22c55e">Zero-LLM hallucination (T=0.1)</span>
+          </div>
+        </div>
+        <div class="acq-stats">
+          <div class="acq-stat">
+            <div class="acq-stat-val">$94K</div>
+            <div class="acq-stat-label">avg annual savings<br>per restaurant</div>
+          </div>
+          <div class="acq-stat">
+            <div class="acq-stat-val">45</div>
+            <div class="acq-stat-label">days to full<br>margin recovery</div>
+          </div>
+          <div class="acq-stat">
+            <div class="acq-stat-val">0.1</div>
+            <div class="acq-stat-label">LLM temp — COGS<br>math precision</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Component renderers ───────────────────────────────────────────────────────
+
+function renderAlert(a) {
+  const severityLabel = { critical: 'CRITICAL', high: 'HIGH', medium: 'MEDIUM' };
+  const severityBadge = { critical: 'badge-red', high: 'badge-orange', medium: 'badge-yellow' };
+  const typeLabel = {
+    vendor_overcharge: 'Vendor Overcharge',
+    recipe_cost_drift: 'Recipe Cost Drift',
+    delivery_erosion:  'Delivery Erosion',
+    order_inefficiency:'Order Inefficiency'
+  };
+
+  return `
+    <div class="alert-card ${a.severity}">
+      <div class="alert-top">
+        <div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+            <span class="badge ${severityBadge[a.severity]}">${severityLabel[a.severity]}</span>
+            <span class="badge badge-blue">${typeLabel[a.alert_type] || a.alert_type}</span>
+            <span class="conf"><span class="conf-dot"></span>${Math.round((a.confidence_score||0.9)*100)}% confidence</span>
+          </div>
+          <div class="alert-title">${a.title}</div>
+        </div>
+        <div class="alert-impact">
+          <div class="alert-impact-value">-$${(a.financial_impact_monthly||0).toLocaleString()}</div>
+          <div class="alert-impact-label">per month</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">$${((a.financial_impact_monthly||0)*12).toLocaleString()}/yr</div>
+        </div>
+      </div>
+      <div class="alert-desc">${a.description}</div>
+      <div class="alert-rec"><strong>Recommended action:</strong> ${a.ai_recommendation}</div>
+    </div>
+  `;
+}
+
+function renderSparkline(p) {
+  const vals = p.trend || [];
+  if (vals.length < 2) return '';
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const range = max - min || 1;
+  const w = 200, h = 32, pad = 4;
+  const points = vals.map((v, i) => {
+    const x = pad + (i / (vals.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((v - min) / range) * (h - pad * 2);
+    return `${x},${y}`;
+  }).join(' ');
+  const color = p.direction === 'up' ? 'var(--red)' : p.direction === 'down' ? 'var(--green)' : 'var(--accent)';
+
+  return `
+    <div class="spark-item">
+      <div class="spark-label">${p.ingredient}</div>
+      <svg class="spark-svg" viewBox="0 0 200 32" preserveAspectRatio="none">
+        <polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="${200 - 4}" cy="${32 - 4 - ((vals[vals.length-1] - min) / range) * (32 - 8)}" r="3" fill="${color}"/>
+      </svg>
+      <div class="spark-current ${p.direction === 'up' ? 'up' : 'stable'}">${p.current}</div>
+    </div>
+  `;
+}
+
+function renderRec(r, num) {
+  const effortColor = { low: 'var(--green)', medium: 'var(--yellow)', high: 'var(--orange)' };
+  const catLabel = { vendor_switch: 'Vendor Switch', recipe_reprice: 'Menu Reprice', channel_rebalancing: 'Channel Strategy', order_consolidation: 'Order Ops' };
+
+  return `
+    <div class="rec-card">
+      <div class="rec-header">
+        <div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+            <span style="width:22px;height:22px;border-radius:50%;background:var(--accent-dim);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${num}</span>
+            <span class="badge badge-blue">${catLabel[r.category] || r.category}</span>
+            <span style="font-size:11px;color:${effortColor[r.effort]}">● ${capitalize(r.effort)} effort</span>
+          </div>
+          <div class="rec-title">${r.title}</div>
+        </div>
+        <div class="rec-savings">
+          <div class="rec-savings-val">+$${r.savings.toLocaleString()}/mo</div>
+          <div class="rec-savings-label">recovery</div>
+        </div>
+      </div>
+      <div class="rec-desc">${r.desc}</div>
+      <div class="rec-steps">
+        ${(r.steps || []).map((s, i) => `
+          <div class="rec-step">
+            <div class="rec-step-num">${i+1}</div>
+            <div class="rec-step-text">${s}</div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="rec-footer">
+        <div class="rec-tags">
+          <span class="conf"><span class="conf-dot"></span>Actionable in &lt;48h</span>
+        </div>
+        <button class="btn btn-accept" onclick="acceptRec(${num})">Accept</button>
+      </div>
+    </div>
+  `;
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+function acceptRec(num) {
+  const cards = document.querySelectorAll('.rec-card');
+  const card = cards[num - 1];
+  if (card) {
+    const btn = card.querySelector('.btn-accept');
+    btn.textContent = '✓ Accepted';
+    btn.style.background = 'var(--green-dim)';
+    btn.style.color = 'var(--green)';
+    btn.disabled = true;
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

@@ -2117,6 +2117,556 @@ app.get('/', (req, res) => {
   }
 });
 
+// ============================================================
+// Upstream Procurement & Margin-Leak Detection API
+// Restaurant supply-chain intelligence layer.
+//
+// Acquisition pitch:
+//   Toast   — turns POS data into COGS intelligence
+//   DoorDash— detects delivery margin erosion before restaurants churn
+//   Clover  — supply-chain + payments = complete restaurant OS
+// ============================================================
+
+const { detectMarginLeaks, detectAllRestaurants } = require('./lib/margin-leak-detector');
+const { calculateRecipeCost, runMenuEngineering } = require('./lib/recipe-costing');
+const { generateProcurementBrief } = require('./lib/procurement-analyzer');
+const { seedRestaurantDemoData } = require('./lib/demo-seed-restaurant');
+
+// ── Demo: load the demo restaurant dashboard in one call ──────────────────────
+app.get('/api/procurement/demo', async (req, res) => {
+  try {
+    const { rows: [restaurant] } = await pool.query(
+      `SELECT * FROM restaurants WHERE slug = 'harvest-and-co' LIMIT 1`
+    );
+    if (!restaurant) return res.status(404).json({ error: 'Demo not seeded yet' });
+
+    const [alertsRes, recsRes, snapshotRes] = await Promise.all([
+      pool.query(
+        `SELECT * FROM margin_alerts WHERE restaurant_id = $1 AND status = 'active' ORDER BY financial_impact_monthly DESC LIMIT 10`,
+        [restaurant.id]
+      ),
+      pool.query(
+        `SELECT * FROM procurement_recommendations WHERE restaurant_id = $1 AND status = 'pending' ORDER BY potential_monthly_savings DESC LIMIT 6`,
+        [restaurant.id]
+      ),
+      pool.query(
+        `SELECT * FROM margin_snapshots WHERE restaurant_id = $1 ORDER BY snapshot_date DESC LIMIT 1`,
+        [restaurant.id]
+      )
+    ]);
+
+    res.json({
+      restaurant,
+      alerts: alertsRes.rows,
+      recommendations: recsRes.rows,
+      snapshot: snapshotRes.rows[0] || null
+    });
+  } catch (err) {
+    console.error('[Procurement] Demo load error:', err);
+    res.status(500).json({ error: 'Failed to load demo' });
+  }
+});
+
+// ── Demo seed ─────────────────────────────────────────────────────────────────
+app.post('/api/procurement/demo/seed', async (req, res) => {
+  try {
+    const result = await seedRestaurantDemoData(pool, null);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Procurement] Demo seed error:', err);
+    res.status(500).json({ error: 'Seed failed: ' + err.message });
+  }
+});
+
+// ── Restaurant CRUD ───────────────────────────────────────────────────────────
+app.get('/api/procurement/restaurants', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.*, ms.health_score, ms.food_cost_pct, ms.delivery_mix_pct,
+              (SELECT COUNT(*) FROM margin_alerts ma WHERE ma.restaurant_id = r.id AND ma.status = 'active') AS active_alerts
+       FROM restaurants r
+       LEFT JOIN margin_snapshots ms ON ms.restaurant_id = r.id AND ms.snapshot_date = CURRENT_DATE
+       WHERE r.org_id IN (
+         SELECT c.org_id FROM competitors c WHERE c.user_id = $1 AND c.org_id IS NOT NULL
+       ) OR EXISTS (
+         SELECT 1 FROM restaurants r2 WHERE r2.id = r.id AND r2.metadata->>'demo_user_id' = $1::text
+       )
+       ORDER BY r.created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ restaurants: rows });
+  } catch (err) {
+    console.error('[Procurement] List restaurants error:', err);
+    res.status(500).json({ error: 'Failed to list restaurants' });
+  }
+});
+
+app.post('/api/procurement/restaurants', authMiddleware, async (req, res) => {
+  try {
+    const { name, cuisine_type, location, monthly_revenue_estimate, target_food_cost_pct, pos_system, delivery_platforms } = req.body;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now();
+
+    const { rows: [org] } = await pool.query(
+      `SELECT org_id FROM competitors WHERE user_id = $1 AND org_id IS NOT NULL LIMIT 1`,
+      [req.user.id]
+    );
+
+    const { rows: [restaurant] } = await pool.query(`
+      INSERT INTO restaurants (org_id, name, slug, cuisine_type, location, monthly_revenue_estimate, target_food_cost_pct, pos_system, delivery_platforms)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
+    `, [org?.org_id || null, name, slug, cuisine_type, location,
+        monthly_revenue_estimate || null, target_food_cost_pct || 28, pos_system || 'unknown',
+        delivery_platforms || []]);
+
+    res.status(201).json({ restaurant });
+  } catch (err) {
+    console.error('[Procurement] Create restaurant error:', err);
+    res.status(500).json({ error: 'Failed to create restaurant' });
+  }
+});
+
+// ── Restaurant dashboard (full data bundle) ───────────────────────────────────
+app.get('/api/procurement/restaurants/:id/dashboard', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [restaurantRes, alertsRes, recsRes, snapshotRes] = await Promise.all([
+      pool.query(`SELECT * FROM restaurants WHERE id = $1`, [id]),
+      pool.query(`SELECT * FROM margin_alerts WHERE restaurant_id = $1 AND status = 'active' ORDER BY financial_impact_monthly DESC`, [id]),
+      pool.query(`SELECT * FROM procurement_recommendations WHERE restaurant_id = $1 AND status = 'pending' ORDER BY potential_monthly_savings DESC`, [id]),
+      pool.query(`SELECT * FROM margin_snapshots WHERE restaurant_id = $1 ORDER BY snapshot_date DESC LIMIT 1`, [id])
+    ]);
+
+    if (!restaurantRes.rows[0]) return res.status(404).json({ error: 'Restaurant not found' });
+
+    res.json({
+      restaurant: restaurantRes.rows[0],
+      alerts: alertsRes.rows,
+      recommendations: recsRes.rows,
+      snapshot: snapshotRes.rows[0] || null
+    });
+  } catch (err) {
+    console.error('[Procurement] Dashboard error:', err);
+    res.status(500).json({ error: 'Failed to load dashboard' });
+  }
+});
+
+// ── Margin alerts ─────────────────────────────────────────────────────────────
+app.get('/api/procurement/restaurants/:id/alerts', async (req, res) => {
+  try {
+    const { status = 'active', limit = 20 } = req.query;
+    const { rows } = await pool.query(
+      `SELECT * FROM margin_alerts WHERE restaurant_id = $1 ${status !== 'all' ? 'AND status = $2' : ''}
+       ORDER BY
+         CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+         financial_impact_monthly DESC NULLS LAST
+       LIMIT $${status !== 'all' ? 3 : 2}`,
+      status !== 'all' ? [req.params.id, status, Math.min(parseInt(limit), 50)] : [req.params.id, Math.min(parseInt(limit), 50)]
+    );
+    res.json({ alerts: rows });
+  } catch (err) {
+    console.error('[Procurement] Alerts error:', err);
+    res.status(500).json({ error: 'Failed to fetch alerts' });
+  }
+});
+
+app.patch('/api/procurement/alerts/:alertId/status', authMiddleware, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['acknowledged', 'resolved', 'dismissed'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    await pool.query(
+      `UPDATE margin_alerts SET status = $1, resolved_at = CASE WHEN $1 = 'resolved' THEN now() ELSE resolved_at END WHERE id = $2`,
+      [status, req.params.alertId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Procurement] Update alert error:', err);
+    res.status(500).json({ error: 'Failed to update alert' });
+  }
+});
+
+// ── Recommendations ───────────────────────────────────────────────────────────
+app.get('/api/procurement/restaurants/:id/recommendations', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM procurement_recommendations WHERE restaurant_id = $1
+       ORDER BY potential_monthly_savings DESC NULLS LAST`,
+      [req.params.id]
+    );
+    res.json({ recommendations: rows });
+  } catch (err) {
+    console.error('[Procurement] Recommendations error:', err);
+    res.status(500).json({ error: 'Failed to fetch recommendations' });
+  }
+});
+
+app.patch('/api/procurement/recommendations/:recId/status', authMiddleware, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['accepted', 'in_progress', 'completed', 'dismissed'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    await pool.query(`UPDATE procurement_recommendations SET status = $1 WHERE id = $2`, [status, req.params.recId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Procurement] Update rec error:', err);
+    res.status(500).json({ error: 'Failed to update recommendation' });
+  }
+});
+
+// ── Trigger autonomous margin-leak scan ───────────────────────────────────────
+app.post('/api/procurement/restaurants/:id/analyze', async (req, res) => {
+  try {
+    const result = await detectMarginLeaks(pool, req.params.id);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Procurement] Analyze error:', err);
+    res.status(500).json({ error: 'Analysis failed: ' + err.message });
+  }
+});
+
+// ── Vendor management ─────────────────────────────────────────────────────────
+app.get('/api/procurement/restaurants/:id/vendors', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT v.*,
+         (SELECT COUNT(*) FROM vendor_prices vp WHERE vp.vendor_id = v.id) AS price_records,
+         (SELECT SUM(po.total_amount) FROM purchase_orders po WHERE po.vendor_id = v.id
+            AND po.order_date >= CURRENT_DATE - INTERVAL '30 days') AS spend_30d
+       FROM vendors v WHERE v.restaurant_id = $1 ORDER BY v.category, v.name`,
+      [req.params.id]
+    );
+    res.json({ vendors: rows });
+  } catch (err) {
+    console.error('[Procurement] Vendors error:', err);
+    res.status(500).json({ error: 'Failed to fetch vendors' });
+  }
+});
+
+app.post('/api/procurement/restaurants/:id/vendors', authMiddleware, async (req, res) => {
+  try {
+    const { name, category, payment_terms, lead_time_days, minimum_order_value, rep_name, rep_email } = req.body;
+    if (!name || !category) return res.status(400).json({ error: 'name and category are required' });
+    const { rows: [vendor] } = await pool.query(`
+      INSERT INTO vendors (restaurant_id, name, category, payment_terms, lead_time_days, minimum_order_value, rep_name, rep_email)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *
+    `, [req.params.id, name, category, payment_terms || 'net30', lead_time_days || 2, minimum_order_value || null, rep_name || null, rep_email || null]);
+    res.status(201).json({ vendor });
+  } catch (err) {
+    console.error('[Procurement] Create vendor error:', err);
+    res.status(500).json({ error: 'Failed to create vendor' });
+  }
+});
+
+// ── Vendor price benchmark ────────────────────────────────────────────────────
+app.get('/api/procurement/restaurants/:id/vendor-benchmark', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT
+        i.name                                          AS ingredient,
+        i.unit,
+        i.current_market_price                          AS market_price,
+        jsonb_object_agg(v.name, vp.price_per_unit)    AS vendor_prices
+      FROM ingredients i
+      JOIN vendor_prices vp   ON vp.ingredient_id = i.id
+      JOIN vendors v          ON v.id = vp.vendor_id
+      WHERE i.restaurant_id = $1
+        AND vp.effective_date = (
+          SELECT MAX(vp2.effective_date)
+          FROM vendor_prices vp2 WHERE vp2.ingredient_id = i.id AND vp2.vendor_id = vp.vendor_id
+        )
+      GROUP BY i.id, i.name, i.unit, i.current_market_price
+      ORDER BY i.category, i.name
+    `, [req.params.id]);
+    res.json({ benchmark: rows });
+  } catch (err) {
+    console.error('[Procurement] Benchmark error:', err);
+    res.status(500).json({ error: 'Failed to fetch benchmark' });
+  }
+});
+
+// ── Ingredient management ─────────────────────────────────────────────────────
+app.get('/api/procurement/restaurants/:id/ingredients', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM ingredients WHERE restaurant_id = $1 ORDER BY category, name`,
+      [req.params.id]
+    );
+    res.json({ ingredients: rows });
+  } catch (err) {
+    console.error('[Procurement] Ingredients error:', err);
+    res.status(500).json({ error: 'Failed to fetch ingredients' });
+  }
+});
+
+app.post('/api/procurement/restaurants/:id/ingredients', authMiddleware, async (req, res) => {
+  try {
+    const { name, category, unit, current_market_price, yield_factor } = req.body;
+    if (!name || !category || !unit) return res.status(400).json({ error: 'name, category, unit required' });
+    const { rows: [ingredient] } = await pool.query(`
+      INSERT INTO ingredients (restaurant_id, name, category, unit, current_market_price, price_updated_at, yield_factor)
+      VALUES ($1,$2,$3,$4,$5,now(),$6) RETURNING *
+    `, [req.params.id, name, category, unit, current_market_price || null, yield_factor || 1.00]);
+    res.status(201).json({ ingredient });
+  } catch (err) {
+    console.error('[Procurement] Create ingredient error:', err);
+    res.status(500).json({ error: 'Failed to create ingredient' });
+  }
+});
+
+// ── Recipe management & costing ───────────────────────────────────────────────
+app.get('/api/procurement/restaurants/:id/recipes', async (req, res) => {
+  try {
+    const { rows: recipes } = await pool.query(
+      `SELECT r.*,
+         COALESCE(
+           (SELECT SUM(ri.quantity * (1 + ri.waste_factor) * COALESCE(i.current_market_price, 0))
+            FROM recipe_ingredients ri JOIN ingredients i ON i.id = ri.ingredient_id
+            WHERE ri.recipe_id = r.id), 0
+         ) AS theoretical_cost,
+         COALESCE(
+           (SELECT SUM(sd.quantity_sold)
+            FROM sales_data sd WHERE sd.recipe_id = r.id AND sd.sale_date >= CURRENT_DATE - INTERVAL '30 days'), 0
+         ) AS qty_sold_30d
+       FROM recipes r WHERE r.restaurant_id = $1 ORDER BY r.menu_category, r.name`,
+      [req.params.id]
+    );
+
+    // Attach food cost % calculation
+    const enriched = recipes.map(r => ({
+      ...r,
+      food_cost_pct: r.menu_price > 0
+        ? parseFloat(((r.theoretical_cost / r.menu_price) * 100).toFixed(1))
+        : null,
+      is_over_target: r.menu_price > 0
+        ? (r.theoretical_cost / r.menu_price) * 100 > (r.target_food_cost_pct || 28)
+        : false
+    }));
+
+    res.json({ recipes: enriched });
+  } catch (err) {
+    console.error('[Procurement] Recipes error:', err);
+    res.status(500).json({ error: 'Failed to fetch recipes' });
+  }
+});
+
+app.post('/api/procurement/restaurants/:id/recipes', authMiddleware, async (req, res) => {
+  try {
+    const { name, menu_category, menu_price, target_food_cost_pct, ingredients } = req.body;
+    if (!name || !menu_category || !menu_price) return res.status(400).json({ error: 'name, menu_category, menu_price required' });
+
+    const { rows: [recipe] } = await pool.query(`
+      INSERT INTO recipes (restaurant_id, name, menu_category, menu_price, target_food_cost_pct)
+      VALUES ($1,$2,$3,$4,$5) RETURNING *
+    `, [req.params.id, name, menu_category, menu_price, target_food_cost_pct || 28]);
+
+    if (Array.isArray(ingredients) && ingredients.length > 0) {
+      for (const ing of ingredients) {
+        await pool.query(`
+          INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, waste_factor)
+          VALUES ($1,$2,$3,$4,$5)
+        `, [recipe.id, ing.ingredient_id, ing.quantity, ing.unit, ing.waste_factor || 0.05]);
+      }
+    }
+
+    res.status(201).json({ recipe });
+  } catch (err) {
+    console.error('[Procurement] Create recipe error:', err);
+    res.status(500).json({ error: 'Failed to create recipe' });
+  }
+});
+
+// ── Purchase orders ───────────────────────────────────────────────────────────
+app.get('/api/procurement/restaurants/:id/orders', async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+    const { rows } = await pool.query(`
+      SELECT po.*, v.name AS vendor_name, v.category AS vendor_category,
+             COUNT(poi.id) AS line_items
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      LEFT JOIN purchase_order_items poi ON poi.purchase_order_id = po.id
+      WHERE po.restaurant_id = $1
+      GROUP BY po.id, v.name, v.category
+      ORDER BY po.order_date DESC LIMIT $2
+    `, [req.params.id, Math.min(parseInt(limit), 100)]);
+    res.json({ orders: rows });
+  } catch (err) {
+    console.error('[Procurement] Orders error:', err);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+app.post('/api/procurement/restaurants/:id/orders', authMiddleware, async (req, res) => {
+  try {
+    const { vendor_id, order_date, delivery_date, status, invoice_number, items } = req.body;
+    if (!vendor_id || !order_date) return res.status(400).json({ error: 'vendor_id and order_date required' });
+
+    const total = (items || []).reduce((s, i) => s + (i.quantity * i.unit_price), 0);
+
+    const { rows: [po] } = await pool.query(`
+      INSERT INTO purchase_orders (restaurant_id, vendor_id, order_date, delivery_date, status, total_amount, invoice_number)
+      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *
+    `, [req.params.id, vendor_id, order_date, delivery_date || null, status || 'delivered', total, invoice_number || null]);
+
+    for (const item of (items || [])) {
+      const line_total = item.quantity * item.unit_price;
+      await pool.query(`
+        INSERT INTO purchase_order_items (purchase_order_id, ingredient_id, quantity, unit, unit_price, line_total)
+        VALUES ($1,$2,$3,$4,$5,$6)
+      `, [po.id, item.ingredient_id, item.quantity, item.unit, item.unit_price, line_total]);
+    }
+
+    res.status(201).json({ order: po });
+  } catch (err) {
+    console.error('[Procurement] Create order error:', err);
+    res.status(500).json({ error: 'Failed to create order' });
+  }
+});
+
+// ── Sales data (POS sync) ─────────────────────────────────────────────────────
+app.post('/api/procurement/restaurants/:id/sales', authMiddleware, async (req, res) => {
+  try {
+    const { sale_date, items } = req.body;
+    if (!sale_date || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'sale_date and items[] required' });
+    }
+    let inserted = 0;
+    for (const item of items) {
+      const net = item.sale_price * item.quantity_sold * (1 - (item.platform_commission_pct || 0) / 100) - (item.platform_fee_flat || 0);
+      await pool.query(`
+        INSERT INTO sales_data (restaurant_id, sale_date, recipe_id, quantity_sold, sale_price, channel, platform_commission_pct, platform_fee_flat, net_revenue)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      `, [req.params.id, sale_date, item.recipe_id || null, item.quantity_sold, item.sale_price,
+          item.channel || 'dine_in', item.platform_commission_pct || 0, item.platform_fee_flat || 0, net]);
+      inserted++;
+    }
+    res.status(201).json({ success: true, inserted });
+  } catch (err) {
+    console.error('[Procurement] Sales sync error:', err);
+    res.status(500).json({ error: 'Failed to sync sales data' });
+  }
+});
+
+// ── Margin snapshot history ───────────────────────────────────────────────────
+app.get('/api/procurement/restaurants/:id/margin-history', async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const { rows } = await pool.query(`
+      SELECT * FROM margin_snapshots WHERE restaurant_id = $1
+        AND snapshot_date >= CURRENT_DATE - ($2 || ' days')::INTERVAL
+      ORDER BY snapshot_date ASC
+    `, [req.params.id, parseInt(days)]);
+    res.json({ history: rows });
+  } catch (err) {
+    console.error('[Procurement] Margin history error:', err);
+    res.status(500).json({ error: 'Failed to fetch margin history' });
+  }
+});
+
+// ── Procurement brief (AI-synthesized executive summary) ──────────────────────
+app.post('/api/procurement/restaurants/:id/brief', async (req, res) => {
+  try {
+    const [restaurantRes, alertsRes] = await Promise.all([
+      pool.query(`SELECT * FROM restaurants WHERE id = $1`, [req.params.id]),
+      pool.query(`SELECT * FROM margin_alerts WHERE restaurant_id = $1 AND status = 'active' ORDER BY financial_impact_monthly DESC LIMIT 10`, [req.params.id])
+    ]);
+
+    const restaurant = restaurantRes.rows[0];
+    if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+
+    const totalImpact = alertsRes.rows.reduce((s, a) => s + parseFloat(a.financial_impact_monthly || 0), 0);
+
+    // Generate brief using procurement-analyzer
+    const brief = await generateProcurementBrief({
+      restaurant,
+      vendorFindings: {
+        total_monthly_overcharge: alertsRes.rows.filter(a => a.alert_type === 'vendor_overcharge').reduce((s, a) => s + parseFloat(a.financial_impact_monthly || 0), 0),
+        findings: alertsRes.rows.filter(a => a.alert_type === 'vendor_overcharge').map(a => ({
+          vendor: a.affected_item, ingredient: a.affected_item, overcharge_pct: 0, monthly_overcharge: parseFloat(a.financial_impact_monthly || 0)
+        }))
+      },
+      recipeFindings: {
+        total_monthly_impact: alertsRes.rows.filter(a => a.alert_type === 'recipe_cost_drift').reduce((s, a) => s + parseFloat(a.financial_impact_monthly || 0), 0),
+        drifted_recipes: alertsRes.rows.filter(a => a.alert_type === 'recipe_cost_drift').map(a => ({
+          recipe: a.affected_item, current_food_cost_pct: 0, monthly_impact: parseFloat(a.financial_impact_monthly || 0)
+        }))
+      },
+      channelAnalysis: {
+        delivery_erosion_monthly: alertsRes.rows.filter(a => a.alert_type === 'delivery_erosion').reduce((s, a) => s + parseFloat(a.financial_impact_monthly || 0), 0),
+        dine_in_margin_pct: null
+      },
+      orderAnalysis: {
+        missed_discount_monthly: alertsRes.rows.filter(a => a.alert_type === 'order_inefficiency').reduce((s, a) => s + parseFloat(a.financial_impact_monthly || 0), 0)
+      }
+    });
+
+    res.json({ brief });
+  } catch (err) {
+    console.error('[Procurement] Brief error:', err);
+    res.status(500).json({ error: 'Failed to generate brief' });
+  }
+});
+
+// ── Cron: run margin-leak detection for all restaurants ───────────────────────
+app.post('/api/procurement/cron/detect-leaks', async (req, res) => {
+  const cronKey = req.headers['x-cron-key'] || req.query.key;
+  if (process.env.CRON_KEY && cronKey !== process.env.CRON_KEY) {
+    return res.status(401).json({ error: 'Invalid cron key' });
+  }
+  try {
+    const results = await detectAllRestaurants(pool);
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error('[Procurement] Cron detect-leaks error:', err);
+    res.status(500).json({ error: 'Detection run failed' });
+  }
+});
+
+// ── MCP capability extension — procurement tools ──────────────────────────────
+// Extends the existing MCP manifest with procurement capabilities
+const PROCUREMENT_MCP_TOOLS = [
+  {
+    name: 'get_margin_alerts',
+    description: 'Retrieve active margin leak alerts for a restaurant. Returns vendor overcharges, recipe cost drift, delivery erosion, and order inefficiency findings.',
+    inputSchema: {
+      type: 'object', required: ['restaurant_id'],
+      properties: {
+        restaurant_id: { type: 'string', format: 'uuid' },
+        severity: { type: 'string', enum: ['critical', 'high', 'medium', 'low', 'all'], default: 'all' }
+      }
+    }
+  },
+  {
+    name: 'get_vendor_benchmark',
+    description: 'Compare current vendor prices against USDA AMS market benchmarks. Identifies overcharges across produce, protein, and dairy categories.',
+    inputSchema: {
+      type: 'object', required: ['restaurant_id'],
+      properties: { restaurant_id: { type: 'string', format: 'uuid' } }
+    }
+  },
+  {
+    name: 'get_procurement_brief',
+    description: 'Generate an AI-synthesized executive procurement brief with total monthly opportunity, priority actions, and ROI estimates.',
+    inputSchema: {
+      type: 'object', required: ['restaurant_id'],
+      properties: { restaurant_id: { type: 'string', format: 'uuid' } }
+    }
+  }
+];
+
+app.get('/api/v1/mcp/procurement', (req, res) => {
+  res.json({
+    schema_version: '1.0',
+    name: 'Upstream Procurement Intelligence',
+    description: 'Autonomous margin-leak detection for restaurant supply chains. Detects vendor overcharges, recipe cost drift, delivery erosion, and order inefficiency.',
+    capabilities: ['vendor_overcharge_detection', 'recipe_cost_drift', 'delivery_margin_analysis', 'procurement_benchmarking', 'menu_engineering'],
+    tools: PROCUREMENT_MCP_TOOLS
+  });
+});
+
 app.listen(port, () => {
   console.log(`Spyglass server running on port ${port}`);
 
