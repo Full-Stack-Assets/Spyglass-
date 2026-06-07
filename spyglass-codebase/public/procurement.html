@@ -239,6 +239,8 @@
       <option value="mickey-malones">Mickey Malone's Tavern</option>
     </select>
     <button class="btn btn-ghost" id="live-prices-btn" onclick="triggerLivePrices()" title="Fetch live USDA AMS + area vendor prices">Live Prices</button>
+    <button class="btn btn-ghost" onclick="showInvoiceModal()" title="Parse a vendor invoice to detect overcharges">Parse Invoice</button>
+    <button class="btn btn-ghost" onclick="showValuationModal()" title="Acquisition valuation calculator">Valuation</button>
     <button class="btn btn-ghost" onclick="triggerScan()">Run Analysis</button>
     <button class="btn btn-primary" onclick="window.location='/dashboard.html'">← Dashboard</button>
   </div>
@@ -516,6 +518,289 @@ function showLivePricePanel(bench, vendors, restaurant) {
   `;
 
   document.body.appendChild(panel);
+}
+
+// ── Invoice parser modal ──────────────────────────────────────────────────────
+function showInvoiceModal() {
+  const existing = document.getElementById('invoice-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'invoice-modal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:680px;padding:28px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div style="font-size:16px;font-weight:700">Parse Vendor Invoice</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">Paste any invoice text — email forward, portal copy-paste, or CSV export</div>
+        </div>
+        <button onclick="document.getElementById('invoice-modal').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:6px 14px;cursor:pointer;font-size:13px">Close</button>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Vendor name (optional — helps matching)</label>
+        <input id="inv-vendor" placeholder="e.g. US Foods, Sysco, Republic National" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:9px 12px;font-size:13px">
+      </div>
+
+      <div style="margin-bottom:16px">
+        <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Invoice text *</label>
+        <textarea id="inv-text" rows="12" placeholder="Paste invoice text here…
+
+Example:
+INVOICE #45821
+US Foods — Delivered 06/05/2026
+
+Mozzarella WM 6/5lb      2 cs    $4.50/lb    $270.00
+Chicken Wings Fresh      40 lb   $2.85/lb    $114.00
+Ground Beef 80/20        30 lb   $4.50/lb    $135.00
+Pizza Dough 50lb bag      1 bag  $22.00 ea   $22.00
+Delivery surcharge                             $8.50
+
+TOTAL: $549.50" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:10px 12px;font-size:12px;font-family:monospace;resize:vertical"></textarea>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center">
+        <button id="inv-parse-btn" onclick="submitInvoice()" style="background:var(--accent);color:white;border:none;border-radius:7px;padding:9px 20px;font-size:13px;font-weight:500;cursor:pointer">Parse &amp; Benchmark</button>
+        <span style="font-size:12px;color:var(--muted)">AI extraction at T=0 · prices compared to USDA market benchmark</span>
+      </div>
+
+      <div id="inv-result" style="margin-top:20px;display:none"></div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+async function submitInvoice() {
+  const btn = document.getElementById('inv-parse-btn');
+  const resultDiv = document.getElementById('inv-result');
+  const text = document.getElementById('inv-text').value.trim();
+  const vendor = document.getElementById('inv-vendor').value.trim();
+
+  if (text.length < 20) {
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div style="color:var(--red);font-size:13px">Please paste at least a few lines of invoice text.</div>';
+    return;
+  }
+
+  btn.textContent = 'Parsing…';
+  btn.disabled = true;
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML = '<div style="color:var(--muted);font-size:13px">Extracting line items via AI…</div>';
+
+  if (!state.restaurant?.id) {
+    // Mock mode demo
+    await new Promise(r => setTimeout(r, 1800));
+    resultDiv.innerHTML = renderInvoiceResult({
+      invoice: { vendor: vendor || 'US Foods', date: new Date().toISOString().slice(0,10), invoice_number: '45821', subtotal: 549.50, line_item_count: 4 },
+      matching: { total_items: 4, matched_to_catalog: 3, unmatched: 1 },
+      overcharge_findings: [
+        { ingredient: 'mozzarella cheese', paid_price: 4.50, market_price: 3.80, unit: 'lb', overcharge_pct: 18.4, monthly_overcharge_estimate: 890, severity: 'high' },
+        { ingredient: 'chicken wings', paid_price: 2.85, market_price: 2.40, unit: 'lb', overcharge_pct: 18.8, monthly_overcharge_estimate: 376, severity: 'high' }
+      ],
+      total_monthly_overcharge_estimate: 1266
+    });
+    btn.textContent = 'Parse & Benchmark';
+    btn.disabled = false;
+    return;
+  }
+
+  try {
+    const resp = await fetch(`/api/procurement/restaurants/${state.restaurant.id}/parse-invoice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw_text: text, vendor_name: vendor || undefined })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error);
+    resultDiv.innerHTML = renderInvoiceResult(data);
+  } catch (err) {
+    resultDiv.innerHTML = `<div style="color:var(--red);font-size:13px">Error: ${err.message}</div>`;
+  } finally {
+    btn.textContent = 'Parse & Benchmark';
+    btn.disabled = false;
+  }
+}
+
+function renderInvoiceResult(data) {
+  const findings = data.overcharge_findings || [];
+  const total = data.total_monthly_overcharge_estimate || 0;
+  return `
+    <div style="border-top:1px solid var(--border);padding-top:16px">
+      <div style="display:flex;gap:20px;margin-bottom:14px;font-size:13px">
+        <span><strong>${data.invoice.line_item_count || 0}</strong> <span style="color:var(--muted)">line items extracted</span></span>
+        <span><strong>${data.matching?.matched_to_catalog || 0}</strong> <span style="color:var(--muted)">matched to catalog</span></span>
+        <span style="color:${total > 0 ? 'var(--red)' : 'var(--green)'}">
+          <strong>$${total.toFixed(0)}/mo</strong> <span style="color:var(--muted)">estimated overcharge</span>
+        </span>
+      </div>
+      ${findings.length === 0
+        ? '<div style="color:var(--green);font-size:13px">No overcharges detected — prices within 5% of market.</div>'
+        : findings.map(f => `
+          <div style="background:var(--surface2);border-left:3px solid var(--${f.severity === 'critical' ? 'red' : f.severity === 'high' ? 'orange' : 'yellow'});border-radius:4px;padding:10px 14px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div>
+                <span style="font-size:13px;font-weight:600;text-transform:capitalize">${f.ingredient}</span>
+                <span style="font-size:12px;color:var(--muted);margin-left:8px">/${f.unit}</span>
+              </div>
+              <span style="font-size:13px;font-weight:700;color:var(--red)">$${f.monthly_overcharge_estimate?.toFixed(0)}/mo</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">
+              Paying <strong style="color:var(--red)">$${f.paid_price}</strong> vs market
+              <strong style="color:var(--green)">$${f.market_price}</strong> — ${f.overcharge_pct}% above benchmark
+            </div>
+          </div>
+        `).join('')}
+      ${data.persistence?.po_id ? `<div style="font-size:11px;color:var(--muted);margin-top:8px">Purchase order recorded · PO ID: ${data.persistence.po_id.slice(0,8)}…</div>` : ''}
+    </div>
+  `;
+}
+
+// ── Acquisition valuation modal ───────────────────────────────────────────────
+async function showValuationModal() {
+  const existing = document.getElementById('valuation-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'valuation-modal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:780px;max-height:88vh;overflow-y:auto;padding:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:16px;font-weight:700">Acquisition Valuation</div>
+      <button onclick="document.getElementById('valuation-modal').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:6px 14px;cursor:pointer;font-size:13px">Close</button>
+    </div>
+    <div style="color:var(--muted);font-size:13px">Loading valuation model…</div>
+  </div>`;
+  document.body.appendChild(overlay);
+
+  let data;
+  if (!state.restaurant?.id) {
+    data = getMockValuation();
+  } else {
+    try {
+      const resp = await fetch(`/api/procurement/restaurants/${state.restaurant.id}/valuation`);
+      data = resp.ok ? await resp.json() : getMockValuation();
+    } catch {
+      data = getMockValuation();
+    }
+  }
+
+  overlay.querySelector('div').innerHTML = renderValuation(data);
+}
+
+function getMockValuation() {
+  const isMM = currentRestaurant === 'mickey-malones';
+  return {
+    restaurant: { name: isMM ? "Mickey Malone's Tavern" : 'Harvest & Co.', location: isMM ? 'Brockton, MA' : 'Austin, TX', annual_revenue: isMM ? 852000 : 2184000 },
+    ebitda: { annual_revenue: isMM ? 852000 : 2184000, current_ebitda: isMM ? 102240 : 327600, optimized_ebitda: isMM ? 139980 : 421440, ebitda_margin_pct: isMM ? 12.0 : 15.0, optimized_ebitda_margin_pct: isMM ? 16.4 : 19.3, ebitda_uplift: isMM ? 37800 : 93840 },
+    base_valuation: {
+      current:   { low: isMM ? 307000 : 984000,  mid: isMM ? 408000 : 1312000, high: isMM ? 562000 : 1968000 },
+      optimized: { low: isMM ? 420000 : 1310000, mid: isMM ? 560000 : 1745000, high: isMM ? 770000 : 2620000 },
+      uplift_at_midpoint: isMM ? 152000 : 433000
+    },
+    total_monthly_leakage: isMM ? 3150 : 7820,
+    annual_leakage: isMM ? 37800 : 93840,
+    acquirer_valuations: isMM ? [
+      { acquirer: 'DoorDash', logo_color: '#ef4444', rationale_headline: 'Zero delivery GMV today → immediate DoorDash activation', acquisition_price_estimate: 728000, acquisition_price_range: { low: 619000, high: 859000 }, revenue_multiple_implied: 0.85, payback_months: 10, synergy_items: ['Delivery GMV unlock: $8,400/mo on activation', 'Merchant health score → support prioritization', 'COGS data → DoorDash capital advance underwriting'] },
+      { acquirer: 'Clover (Fiserv)', logo_color: '#22c55e', rationale_headline: 'Payments + supply chain = complete restaurant OS', acquisition_price_estimate: 706000, acquisition_price_range: { low: 600000, high: 833000 }, revenue_multiple_implied: 0.83, payback_months: 10, synergy_items: ['POS deployment on acquisition: 0 switching cost', 'Payments take rate: ~2.5% on $852K GMV = $21,300/yr', 'Working capital: Upstream COGS = underwriting signal'] },
+      { acquirer: 'Toast', logo_color: '#e53e3e', rationale_headline: 'POS-native COGS intelligence — the missing retention hook', acquisition_price_estimate: 674000, acquisition_price_range: { low: 573000, high: 795000 }, revenue_multiple_implied: 0.79, payback_months: 9, synergy_items: ['POS webhook integration: 0-day', 'Recipe costing: activated on signing', 'Churn reduction: 18% projected for cost-aware restaurants'] }
+    ] : [
+      { acquirer: 'Toast', logo_color: '#e53e3e', rationale_headline: 'POS-native COGS intelligence — the missing retention hook', acquisition_price_estimate: 2290000, acquisition_price_range: { low: 1947000, high: 2702000 }, revenue_multiple_implied: 1.05, payback_months: 12, synergy_items: ['Full Toast POS integration: 0-day', 'COGS intelligence = highest-value Toast upsell', '18% churn reduction for cost-aware restaurants'] },
+      { acquirer: 'DoorDash', logo_color: '#ef4444', rationale_headline: 'Delivery erosion detection → reduces partner churn', acquisition_price_estimate: 2060000, acquisition_price_range: { low: 1751000, high: 2431000 }, revenue_multiple_implied: 0.94, payback_months: 11, synergy_items: ['Commission renegotiation signal', 'Delivery margin health score', 'DoorDash Capital underwriting'] }
+    ],
+    roi_projection: { irr_3yr: isMM ? 41.2 : 38.8, payback_months: isMM ? 9.4 : 11.2 },
+    acquisition_narrative: isMM
+      ? "Mickey Malone's represents a $560K asset with $37,800/year in untapped margin recovery sitting idle, plus zero delivery presence — a unique double-upside for DoorDash. The no-POS situation means Clover can deploy on day 1 with full payment capture, converting a $852K annual GMV stream at 2.5% take rate ($21,300/yr) from the first transaction. Immediate action: activate DoorDash merchant account and deploy Clover hardware within 30 days of closing."
+      : "Harvest & Co. is a $1.7M asset with $93,840/year in recoverable margin that Toast's POS data alone cannot detect. With full DoorDash integration already live, the commission renegotiation alone ($3,800/mo) represents an 11-month payback period. Immediate action: deploy Upstream COGS intelligence across all three Austin locations and trigger a Sysco vendor renegotiation in week 1."
+  };
+}
+
+function renderValuation(d) {
+  const top = d.acquirer_valuations?.[0];
+  const closeBtn = `<button onclick="document.getElementById('valuation-modal').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:6px 14px;cursor:pointer;font-size:13px">Close</button>`;
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div style="font-size:16px;font-weight:700">Acquisition Valuation — ${d.restaurant?.name}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">${d.restaurant?.location} · $${(d.restaurant?.annual_revenue/1000).toFixed(0)}K annual revenue</div>
+      </div>
+      ${closeBtn}
+    </div>
+
+    <!-- EBITDA bridge -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+      <div style="background:var(--surface2);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Current EBITDA</div>
+        <div style="font-size:22px;font-weight:700;color:var(--orange)">$${(d.ebitda?.current_ebitda/1000).toFixed(0)}K</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">${d.ebitda?.ebitda_margin_pct}% margin</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">EBITDA Uplift</div>
+        <div style="font-size:22px;font-weight:700;color:var(--green)">+$${((d.ebitda?.ebitda_uplift||0)/1000).toFixed(0)}K</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">from leak recovery</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:14px;text-align:center">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px">Optimized EBITDA</div>
+        <div style="font-size:22px;font-weight:700;color:var(--green)">$${(d.ebitda?.optimized_ebitda/1000).toFixed(0)}K</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">${d.ebitda?.optimized_ebitda_margin_pct}% margin</div>
+      </div>
+    </div>
+
+    <!-- Valuation range -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="background:var(--surface2);border-radius:8px;padding:14px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">Standalone Valuation</div>
+        <div style="font-size:12px;color:var(--muted)">Current: <strong style="color:var(--text)">$${(d.base_valuation?.current?.low/1000).toFixed(0)}K – $${(d.base_valuation?.current?.high/1000).toFixed(0)}K</strong> (mid $${(d.base_valuation?.current?.mid/1000).toFixed(0)}K)</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Optimized: <strong style="color:var(--green)">$${(d.base_valuation?.optimized?.low/1000).toFixed(0)}K – $${(d.base_valuation?.optimized?.high/1000).toFixed(0)}K</strong></div>
+        <div style="margin-top:8px;padding:6px 10px;background:rgba(34,197,94,0.08);border-radius:6px;font-size:12px;color:var(--green)">+$${((d.base_valuation?.uplift_at_midpoint||0)/1000).toFixed(0)}K uplift from optimization</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:14px">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">ROI Projection (3-yr)</div>
+        <div style="font-size:22px;font-weight:700;color:var(--accent)">${d.roi_projection?.irr_3yr}% IRR</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">${d.roi_projection?.payback_months?.toFixed(1)} month payback</div>
+      </div>
+    </div>
+
+    <!-- Acquirer cards -->
+    <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Strategic Acquirer Valuations</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      ${(d.acquirer_valuations||[]).map((a, i) => `
+        <div style="background:var(--surface2);border:1px solid ${i===0 ? 'rgba(61,142,240,0.3)' : 'var(--border)'};border-radius:8px;padding:14px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <span style="font-size:13px;font-weight:700">${a.acquirer}</span>
+                ${i===0 ? '<span style="font-size:10px;background:var(--accent-dim);color:var(--accent);padding:1px 7px;border-radius:10px">Best fit</span>' : ''}
+              </div>
+              <div style="font-size:12px;color:var(--muted)">${a.rationale_headline}</div>
+              <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                ${(a.synergy_items||[]).map(s => `<span style="font-size:10px;background:rgba(255,255,255,0.05);color:var(--muted);padding:2px 7px;border-radius:8px">${s}</span>`).join('')}
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:20px;font-weight:800;color:var(--green)">$${(a.acquisition_price_estimate/1000).toFixed(0)}K</div>
+              <div style="font-size:11px;color:var(--muted)">$${(a.acquisition_price_range?.low/1000).toFixed(0)}K – $${(a.acquisition_price_range?.high/1000).toFixed(0)}K</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${a.revenue_multiple_implied}x revenue · ${a.payback_months}mo payback</div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    ${d.acquisition_narrative ? `
+    <div style="background:rgba(61,142,240,0.07);border:1px solid rgba(61,142,240,0.2);border-radius:8px;padding:14px;font-size:13px;color:#9cb8e8;line-height:1.6;margin-bottom:16px">
+      <div style="font-size:11px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px">AI Acquisition Memo</div>
+      ${d.acquisition_narrative}
+    </div>` : ''}
+
+    <div style="font-size:11px;color:var(--muted);line-height:1.5">
+      Methodology: EBITDA × industry multiple (2024 QSR/bar M&A comps). Strategic premiums based on platform synergy value + GMV unlock. Indicative only — subject to due diligence. IRR assumes 3-year hold, 5.5× exit multiple.
+    </div>
+  `;
 }
 
 // ── Mock data (used if no DB is connected) ────────────────────────────────────

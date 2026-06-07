@@ -2137,6 +2137,9 @@ const {
   refreshIngredientMarketPrices,
   fetchAreaVendors
 } = require('./lib/vendor-price-fetcher');
+const { processInvoice } = require('./lib/invoice-parser');
+const { ingestPOSWebhook, recalculateDaySnapshot } = require('./lib/pos-integration');
+const { calculateAcquisitionValuation } = require('./lib/acquisition-valuer');
 
 // ── Demo: load the demo restaurant dashboard in one call ──────────────────────
 app.get('/api/procurement/demo', async (req, res) => {
@@ -2889,6 +2892,102 @@ app.post('/api/procurement/cron/detect-leaks', async (req, res) => {
   } catch (err) {
     console.error('[Procurement] Cron detect-leaks error:', err);
     res.status(500).json({ error: 'Detection run failed' });
+  }
+});
+
+// ── Invoice parsing — accepts raw text from email/portal copy-paste ───────────
+// Body: { raw_text, vendor_name?, vendor_id?, restaurant_id? }
+// Also accepts multipart/form-data with a `invoice` field
+app.post('/api/procurement/restaurants/:id/parse-invoice', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { raw_text, vendor_name, vendor_id } = req.body;
+    if (!raw_text || raw_text.trim().length < 20) {
+      return res.status(400).json({ error: 'raw_text is required (min 20 chars). Paste invoice text from email or portal.' });
+    }
+
+    const result = await processInvoice(pool, id, raw_text, { vendorName: vendor_name, vendorId: vendor_id });
+
+    // Trigger margin leak re-detection after new invoice prices are recorded
+    let leakSummary = null;
+    try {
+      const leaked = await detectMarginLeaks(pool, id);
+      leakSummary = { new_alerts: leaked?.alerts?.length || 0 };
+    } catch { /* non-fatal */ }
+
+    res.json({ ...result, leak_detection: leakSummary });
+  } catch (err) {
+    console.error('[Procurement] Invoice parse error:', err);
+    res.status(500).json({ error: 'Invoice parsing failed: ' + err.message });
+  }
+});
+
+// ── POS webhook receivers — Toast / Clover / Square ──────────────────────────
+// Signature secrets: TOAST_WEBHOOK_SECRET, CLOVER_WEBHOOK_SECRET, SQUARE_WEBHOOK_SECRET env vars
+// restaurant_id resolved from the `rid` query param or webhook metadata
+app.post('/api/procurement/webhook/:platform', async (req, res) => {
+  const { platform } = req.params;
+  const restaurantId = req.query.rid || req.body?.restaurant_id;
+
+  if (!restaurantId) {
+    return res.status(400).json({ error: 'restaurant_id required as ?rid= query param' });
+  }
+
+  try {
+    const result = await ingestPOSWebhook(
+      pool, restaurantId, platform, req.body, req.headers
+    );
+    res.json({ ok: true, platform, ...result });
+  } catch (err) {
+    console.error(`[POS] ${platform} webhook error:`, err.message);
+    // Always 200 to POS platforms (they retry on non-2xx)
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+// ── Manual sales entry — fallback for restaurants without POS webhooks ────────
+app.post('/api/procurement/restaurants/:id/sales/manual', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { entries } = req.body;  // [{ recipe_name, quantity, sale_price, channel, date }]
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return res.status(400).json({ error: 'entries array required' });
+    }
+
+    let inserted = 0;
+    for (const e of entries) {
+      const { rows: [recipe] } = await pool.query(
+        `SELECT id FROM recipes WHERE restaurant_id = $1 AND name ILIKE $2 LIMIT 1`,
+        [id, `%${e.recipe_name}%`]
+      );
+      const commPct = e.channel === 'doordash' ? 27 : e.channel === 'ubereats' ? 30 : 0;
+      const netRevenue = (e.sale_price || 0) * (1 - commPct / 100) * (e.quantity || 1);
+      await pool.query(`
+        INSERT INTO sales_data
+          (restaurant_id, sale_date, recipe_id, quantity_sold, sale_price,
+           channel, platform_commission_pct, net_revenue)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+      `, [id, e.date || new Date().toISOString().slice(0,10), recipe?.id || null,
+          e.quantity || 1, e.sale_price || 0, e.channel || 'dine_in', commPct, netRevenue]);
+      inserted++;
+    }
+
+    await recalculateDaySnapshot(pool, id, new Date().toISOString().slice(0, 10));
+    res.json({ inserted });
+  } catch (err) {
+    console.error('[Procurement] Manual sales error:', err);
+    res.status(500).json({ error: 'Manual sales entry failed: ' + err.message });
+  }
+});
+
+// ── Acquisition valuation calculator ─────────────────────────────────────────
+app.get('/api/procurement/restaurants/:id/valuation', async (req, res) => {
+  try {
+    const result = await calculateAcquisitionValuation(pool, req.params.id);
+    res.json(result);
+  } catch (err) {
+    console.error('[Procurement] Valuation error:', err);
+    res.status(500).json({ error: 'Valuation failed: ' + err.message });
   }
 });
 
