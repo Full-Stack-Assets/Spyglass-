@@ -234,6 +234,10 @@
   </div>
   <div class="nav-actions">
     <span class="conf"><span class="conf-dot pulse"></span>Live scanning</span>
+    <select id="restaurant-switcher" onchange="switchRestaurant(this.value)" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:13px;cursor:pointer">
+      <option value="harvest">Harvest &amp; Co. (Demo)</option>
+      <option value="mickey-malones">Mickey Malone's Tavern</option>
+    </select>
     <button class="btn btn-ghost" onclick="triggerScan()">Run Analysis</button>
     <button class="btn btn-primary" onclick="window.location='/dashboard.html'">← Dashboard</button>
   </div>
@@ -249,16 +253,42 @@
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
 let state = { restaurant: null, alerts: [], recommendations: [], snapshot: null };
+let currentRestaurant = 'harvest';
+
+// ── Restaurant switcher ───────────────────────────────────────────────────────
+function switchRestaurant(which) {
+  currentRestaurant = which;
+  const url = new URL(window.location);
+  url.searchParams.set('r', which);
+  window.history.replaceState({}, '', url);
+  document.getElementById('app').innerHTML = '<div class="loader"><div class="spinner"></div><div class="loader-text">Loading…</div></div>';
+  state = { restaurant: null, alerts: [], recommendations: [], snapshot: null };
+  if (which === 'mickey-malones') {
+    initMickeyMalones();
+  } else {
+    initHarvest();
+  }
+}
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const r = params.get('r') || 'harvest';
+  currentRestaurant = r;
+  const sel = document.getElementById('restaurant-switcher');
+  if (sel) sel.value = r;
+  if (r === 'mickey-malones') {
+    await initMickeyMalones();
+  } else {
+    await initHarvest();
+  }
+}
+
+async function initHarvest() {
   try {
-    // Try to load demo restaurant data
     const res = await fetch('/api/procurement/demo');
     const data = await res.json();
-
     if (!res.ok || !data.restaurant) {
-      // Seed demo data first
       const seedRes = await fetch('/api/procurement/demo/seed', { method: 'POST' });
       if (!seedRes.ok) throw new Error('Demo seed failed');
       const seeded = await seedRes.json();
@@ -271,9 +301,37 @@ async function init() {
       render();
     }
   } catch (err) {
-    // Render with realistic mock data for pure-static demo
     renderWithMockData();
   }
+}
+
+async function initMickeyMalones() {
+  try {
+    const res = await fetch('/api/procurement/demo/mickey-malones');
+    if (res.status === 404) {
+      const seedRes = await fetch('/api/procurement/demo/seed-mickey-malones', { method: 'POST' });
+      if (!seedRes.ok) throw new Error('Seed failed');
+      const again = await fetch('/api/procurement/demo/mickey-malones');
+      if (!again.ok) throw new Error('Load after seed failed');
+      const data = await again.json();
+      applyMickeyMalonesState(data);
+    } else if (res.ok) {
+      const data = await res.json();
+      applyMickeyMalonesState(data);
+    } else {
+      throw new Error('API error');
+    }
+  } catch (err) {
+    renderFull(getMickeyMalonesData());
+  }
+}
+
+function applyMickeyMalonesState(data) {
+  state.restaurant = data.restaurant;
+  state.alerts = data.alerts || [];
+  state.recommendations = data.recommendations || [];
+  state.snapshot = data.snapshot || null;
+  render();
 }
 
 async function loadRestaurant(id) {
@@ -397,16 +455,137 @@ function getMockData() {
   };
 }
 
+function getMickeyMalonesData() {
+  return {
+    restaurant: {
+      name: "Mickey Malone's Tavern",
+      location: '347 N Pearl St, Brockton, MA 02301',
+      target_food_cost_pct: 30,
+      monthly_revenue_estimate: 71000,
+      pos_system: 'unknown',
+      delivery_platforms: [],
+      metadata: { annual_revenue: 852000, acquisition_target: true, acquirer_prospect: 'Kona Equity' }
+    },
+    snapshot: { health_score: 62, food_cost_pct: 35.0, delivery_mix_pct: 0, net_margin_pct: 19.8 },
+    alerts: [
+      {
+        id: 'mm1', alert_type: 'vendor_overcharge', severity: 'critical',
+        title: 'US Foods mozzarella 18.4% above market — $890/month overcharge',
+        description: "Paying $4.50/lb to US Foods for mozzarella vs $3.80/lb USDA market benchmark. Baldor Specialty Foods quotes $3.85/lb for the identical Grande Whole Milk Mozzarella spec. Verified across 10 consecutive invoices. Affects all 4 pizza SKUs (Margherita, Pepperoni, and house specials).",
+        affected_item: 'Mozzarella Cheese — US Foods',
+        financial_impact_monthly: 890,
+        confidence_score: 0.97,
+        ai_recommendation: '<strong>Call Baldor Specialty Foods (800-227-2370)</strong> to request a sample case of Grande Whole Milk Mozzarella 6/5lb. If quality matches, execute a full vendor switch within 7 days. US Foods may match at $3.90/lb — accept only if Baldor cannot deliver reliably. Annual savings at full switch: $10,680.'
+      },
+      {
+        id: 'mm2', alert_type: 'recipe_cost_drift', severity: 'high',
+        title: 'Pub Burger at 40% food cost — $1,200/month above 30% target',
+        description: "Ground beef from US Foods at $4.50/lb (market: $4.20/lb) drives the Pub Burger to 40% food cost vs 30% target. At 360 covers/month the per-plate overage is $1.63, generating $587/mo in direct loss. Break-even at 30% target requires either: repricing to $15.99 or reducing patty from 6.4oz → 5oz.",
+        affected_item: 'Pub Burger',
+        financial_impact_monthly: 1200,
+        confidence_score: 0.94,
+        ai_recommendation: '<strong>Reprice to $15.99 (+$2.00).</strong> Brockton comparable burger avg is $17.99 — you remain $2 below market. Update Clover POS in under 5 minutes. No recipe changes needed. Alternatively, source beef from NE Produce co-op at $4.20/lb as an interim step.'
+      },
+      {
+        id: 'mm3', alert_type: 'recipe_cost_drift', severity: 'high',
+        title: 'Wings at 36.3% cost — chicken prices up 18.8% since last repricing',
+        description: "Chicken wings up from $2.40 → $2.85/lb at US Foods (18.8% increase over 9 months). Buffalo Wings (12 pcs) at $15.99 now generates 36.3% food cost. 300 portions/month × $0.97 overage = $291/mo. Boston Poultry Co-op supplies at $2.45/lb — a 14% saving.",
+        affected_item: 'Buffalo Wings (12 pcs)',
+        financial_impact_monthly: 680,
+        confidence_score: 0.91,
+        ai_recommendation: '<strong>Contact Boston Poultry Co-op (617-555-0192)</strong> for a direct-source quote. Run a 2-week parallel trial (50/50 split US Foods vs co-op) to confirm quality. Alternatively, launch a 6-piece option at $8.99 to reduce portion size and drive higher-margin bar sales alongside.'
+      },
+      {
+        id: 'mm4', alert_type: 'order_inefficiency', severity: 'medium',
+        title: 'US Foods order fragmentation — 10 orders avg $420, below $600 discount threshold',
+        description: "10 US Foods orders over the last 90 days averaged $420 each, below the $600 minimum for a 3% volume rebate. Consolidating to bi-weekly scheduled orders (est. avg $1,050/order) unlocks the rebate and reduces delivery surcharges.",
+        affected_item: 'US Foods',
+        financial_impact_monthly: 380,
+        confidence_score: 0.88,
+        ai_recommendation: '<strong>Set recurring US Foods order days: Tuesday & Friday.</strong> Call rep Dave Caruso (d.caruso@usfoods.com) to document the rebate structure and request retroactive eligibility for Q2. Build a par-level sheet for dry goods and dairy to support larger consolidated orders.'
+      }
+    ],
+    vendorBenchmark: [
+      { ingredient: 'Mozzarella Cheese', unit: 'lb', paid: 4.50, market: 3.80, alt_vendor: 'Baldor', alt_price: 3.85, overcharge: 18.4, monthly_impact: 890 },
+      { ingredient: 'Chicken Wings',     unit: 'lb', paid: 2.85, market: 2.40, alt_vendor: 'Boston Poultry Co-op', alt_price: 2.45, overcharge: 18.8, monthly_impact: 360 },
+      { ingredient: 'Jameson Whiskey',   unit: '750ml', paid: 18.50, market: 16.00, alt_vendor: 'Direct Import', alt_price: 16.50, overcharge: 15.6, monthly_impact: 210 },
+      { ingredient: 'Ground Beef 80/20', unit: 'lb', paid: 4.50, market: 4.20, alt_vendor: 'NE Produce Co.', alt_price: 4.22, overcharge: 7.1, monthly_impact: 120 },
+      { ingredient: 'Brioche Buns',      unit: 'ea', paid: 0.52, market: 0.45, alt_vendor: 'Local Bakery', alt_price: 0.46, overcharge: 15.6, monthly_impact: 84 }
+    ],
+    channels: [
+      { channel: 'Dine-In', revenue: 53250, margin_pct: 22.4, commission: 0, orders: 2880 },
+      { channel: 'Takeout',  revenue: 17750, margin_pct: 20.1, commission: 0, orders: 960 },
+      { channel: 'Delivery (None)', revenue: 0, margin_pct: 0, commission: 0, orders: 0 }
+    ],
+    priceHistory: [
+      { ingredient: 'Mozzarella', trend: [3.80,3.90,4.00,4.15,4.30,4.45,4.50], direction: 'up', current: '$4.50/lb' },
+      { ingredient: 'Chicken Wings', trend: [2.20,2.25,2.30,2.40,2.55,2.72,2.85], direction: 'up', current: '$2.85/lb' },
+      { ingredient: 'Jameson 750ml', trend: [15.50,15.50,16.80,16.80,17.80,18.50,18.50], direction: 'up', current: '$18.50' },
+      { ingredient: 'Ground Beef', trend: [4.10,4.10,4.20,4.25,4.30,4.40,4.50], direction: 'up', current: '$4.50/lb' }
+    ],
+    recommendations: [
+      {
+        category: 'vendor_switch', effort: 'low', savings: 890,
+        title: 'Switch mozzarella to Baldor Specialty Foods — $10,680/year',
+        desc: "Baldor quotes $3.85/lb vs US Foods $4.50/lb for the identical Grande Whole Milk Mozzarella spec. Zero recipe changes. Affects all 4 pizza SKUs.",
+        steps: ['Call Baldor (800-227-2370) — request Grande WM Mozz 6/5lb sample', 'Kitchen taste test vs current US Foods supply (Day 2-3)', 'Place first Baldor order, discontinue US Foods mozzarella (Day 7)', 'Benchmark quarterly — hold Baldor to ≤$4.00/lb']
+      },
+      {
+        category: 'menu_repricing', effort: 'low', savings: 1200,
+        title: "Reprice Pub Burger to $15.99 — recovers $1,200/mo",
+        desc: "At $13.99 the Pub Burger loses $1.63/plate vs 30% target. $15.99 brings food cost to 30.7% — still $2 below Brockton competitors at $17.99.",
+        steps: ['Update Clover POS to $15.99 (5-minute task)', 'Update any printed menus or chalk boards', 'Monitor sales velocity — alert if weekly covers drop >15%', 'Optional: $1 off Tuesday special for 2 weeks to ease the increase']
+      },
+      {
+        category: 'vendor_switch', effort: 'low', savings: 680,
+        title: 'Source wings from Boston Poultry Co-op — $2.45/lb vs $2.85',
+        desc: "14% price reduction on chicken wings. At ~800 lbs/month, saves $320/mo on wings alone plus reduces recipe cost drift on the Buffalo Wings (12 pcs) SKU.",
+        steps: ['Request quote from Boston Poultry Co-op (617-555-0192)', 'Confirm fresh (not frozen) spec — kitchen preference check', '2-week parallel trial: 50% Boston Poultry, 50% US Foods', 'Full switch to co-op if quality passes']
+      },
+      {
+        category: 'channel_expansion', effort: 'medium', savings: 8400,
+        title: 'Launch DoorDash delivery — $8,400/mo untapped revenue',
+        desc: "Mickey Malone's has zero delivery presence. At industry avg 12% delivery mix and $71K/mo revenue, this represents $8,500/mo in new revenue even at DoorDash's 27% commission rate.",
+        steps: ['Sign up at merchant.doordash.com — 48hr onboarding', 'Set delivery menu prices 18% above dine-in to offset 27% commission', 'Start with Fri/Sat evenings only for the first 2 weeks', 'Activate UberEats (25% commission) in Week 3 for platform diversification']
+      }
+    ],
+    menuEngineering: {
+      stars:   [{ name: 'Pearl Street Punch', cm: 12.75 }, { name: 'Midnight Manhattan', cm: 15.30 }],
+      plows:   [{ name: 'Buffalo Wings (12 pcs)', cm: 10.19 }, { name: "Basket O'Fries", cm: 7.49 }],
+      puzzles: [{ name: 'Dublin Daydream', cm: 13.60 }, { name: 'Celtic Mule', cm: 12.04 }],
+      dogs:    [{ name: 'Pub Burger', cm: 8.39 }]
+    },
+    acquisitionContext: {
+      target: "Mickey Malone's Tavern",
+      location: '347 N Pearl St, Brockton, MA 02301',
+      annual_revenue: 852000,
+      optimized_annual_revenue: 1200000,
+      leakage_monthly: 3150,
+      leakage_annual: 37800,
+      platform_fit: [
+        { name: 'Clover', rationale: 'Bar/tavern POS + payments — replace unknown POS, capture all F&B transactions' },
+        { name: 'DoorDash', rationale: 'Zero delivery footprint = immediate GMV upside on signup' },
+        { name: 'Toast', rationale: 'Kitchen display + bar tab management for high-volume sports-bar events' }
+      ]
+    }
+  };
+}
+
 // ── Render ────────────────────────────────────────────────────────────────────
 function render() {
+  const mockBase = currentRestaurant === 'mickey-malones' ? getMickeyMalonesData() : getMockData();
   const data = (state.restaurant && state.alerts.length)
     ? { restaurant: state.restaurant, alerts: state.alerts, recommendations: state.recommendations, snapshot: state.snapshot }
     : null;
-  const d = data ? { ...data, ...getMockData(), restaurant: data.restaurant, alerts: data.alerts, snapshot: data.snapshot } : getMockData();
+  const d = data
+    ? { ...mockBase, restaurant: data.restaurant, alerts: data.alerts, recommendations: data.recommendations, snapshot: data.snapshot }
+    : mockBase;
   renderFull(d);
 }
 
-function renderWithMockData() { renderFull(getMockData()); }
+function renderWithMockData() {
+  renderFull(currentRestaurant === 'mickey-malones' ? getMickeyMalonesData() : getMockData());
+}
 
 function renderFull(d) {
   const totalImpact = d.alerts.reduce((s, a) => s + (a.financial_impact_monthly || 0), 0);
@@ -508,16 +687,34 @@ function renderFull(d) {
           <table>
             <thead>
               <tr>
+                ${d.acquisitionContext ? `
+                <th>Ingredient</th>
+                <th>Paid (current)</th>
+                <th>Alternative</th>
+                <th>Market</th>
+                <th>Overcharge</th>
+                <th>$/mo impact</th>
+                ` : `
                 <th>Ingredient</th>
                 <th>Sysco</th>
                 <th>US Foods</th>
                 <th>GFS</th>
                 <th>Market</th>
                 <th>Overcharge</th>
+                `}
               </tr>
             </thead>
             <tbody>
-              ${(d.vendorBenchmark || []).map(r => `
+              ${(d.vendorBenchmark || []).map(r => d.acquisitionContext ? `
+                <tr>
+                  <td style="font-weight:500">${r.ingredient} <span style="color:var(--muted);font-size:11px">/${r.unit}</span></td>
+                  <td style="color:var(--red)">$${r.paid}</td>
+                  <td><span class="savings-tag">$${r.alt_price} ${r.alt_vendor}</span></td>
+                  <td style="color:var(--muted)">$${r.market}</td>
+                  <td><span class="badge badge-red">+${r.overcharge}%</span></td>
+                  <td style="font-weight:600;color:var(--red)">$${r.monthly_impact}/mo</td>
+                </tr>
+              ` : `
                 <tr>
                   <td style="font-weight:500">${r.ingredient}</td>
                   <td style="color:var(--red)">$${r.sysco}</td>
@@ -531,7 +728,7 @@ function renderFull(d) {
           </table>
           <div style="margin-top:14px;font-size:12px;color:var(--muted);display:flex;align-items:center;justify-content:space-between">
             <span>Total vendor overcharge</span>
-            <span style="font-weight:700;color:var(--red)">$1,742/month</span>
+            <span style="font-weight:700;color:var(--red)">$${(d.vendorBenchmark||[]).reduce((s,r)=>s+(r.monthly_impact||r.monthly_cost_diff||0),0).toLocaleString()}/month</span>
           </div>
         </div>
       </div>
@@ -631,6 +828,34 @@ function renderFull(d) {
       </div>
 
       <!-- Acquisition banner -->
+      ${d.acquisitionContext ? `
+      <div class="acq-banner" style="border-color:rgba(168,85,247,0.3)">
+        <div class="acq-left">
+          <div class="acq-title">Acquisition Intelligence — ${d.acquisitionContext.target}</div>
+          <div class="acq-desc">
+            Real due-diligence data loaded from Kona Equity's acquisition package. ${d.restaurant.name} at ${d.acquisitionContext.location} is a $${(d.acquisitionContext.annual_revenue/1000).toFixed(0)}K/yr sports bar with zero delivery presence and $${(d.acquisitionContext.leakage_monthly).toLocaleString()}/mo in recoverable margin leaks. Platform acquirers gain immediate COGS intelligence at signing.
+          </div>
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+            ${d.acquisitionContext.platform_fit.map(p => `<span class="badge badge-purple" title="${p.rationale}">${p.name}: ${p.rationale.split('—')[0].trim()}</span>`).join('')}
+            <span class="badge badge-orange">$${(d.acquisitionContext.leakage_annual/1000).toFixed(0)}K/yr recoverable</span>
+          </div>
+        </div>
+        <div class="acq-stats">
+          <div class="acq-stat">
+            <div class="acq-stat-val">$${(d.acquisitionContext.leakage_monthly/1000).toFixed(1)}K</div>
+            <div class="acq-stat-label">monthly leak<br>detected</div>
+          </div>
+          <div class="acq-stat">
+            <div class="acq-stat-val">$8.4K</div>
+            <div class="acq-stat-label">untapped delivery<br>revenue/month</div>
+          </div>
+          <div class="acq-stat">
+            <div class="acq-stat-val">14</div>
+            <div class="acq-stat-label">days to recover<br>largest leak</div>
+          </div>
+        </div>
+      </div>
+      ` : `
       <div class="acq-banner">
         <div class="acq-left">
           <div class="acq-title">Upstream — Built for Strategic Acquisition</div>
@@ -660,6 +885,7 @@ function renderFull(d) {
           </div>
         </div>
       </div>
+      `}
     </div>
   `;
 }

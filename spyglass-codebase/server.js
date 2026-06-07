@@ -2131,6 +2131,7 @@ const { detectMarginLeaks, detectAllRestaurants } = require('./lib/margin-leak-d
 const { calculateRecipeCost, runMenuEngineering } = require('./lib/recipe-costing');
 const { generateProcurementBrief } = require('./lib/procurement-analyzer');
 const { seedRestaurantDemoData } = require('./lib/demo-seed-restaurant');
+const { seedMickeyMalonesData } = require('./lib/demo-seed-mickey-malones');
 
 // ── Demo: load the demo restaurant dashboard in one call ──────────────────────
 app.get('/api/procurement/demo', async (req, res) => {
@@ -2167,7 +2168,7 @@ app.get('/api/procurement/demo', async (req, res) => {
   }
 });
 
-// ── Demo seed ─────────────────────────────────────────────────────────────────
+// ── Demo seed — Harvest & Co. ─────────────────────────────────────────────────
 app.post('/api/procurement/demo/seed', async (req, res) => {
   try {
     const result = await seedRestaurantDemoData(pool, null);
@@ -2175,6 +2176,97 @@ app.post('/api/procurement/demo/seed', async (req, res) => {
   } catch (err) {
     console.error('[Procurement] Demo seed error:', err);
     res.status(500).json({ error: 'Seed failed: ' + err.message });
+  }
+});
+
+// ── Demo seed — Mickey Malone's Tavern (Kona Equity acquisition target) ───────
+app.post('/api/procurement/demo/seed-mickey-malones', async (req, res) => {
+  try {
+    const result = await seedMickeyMalonesData(pool, null);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error("[Procurement] Mickey Malone's seed error:", err);
+    res.status(500).json({ error: 'Seed failed: ' + err.message });
+  }
+});
+
+// ── Demo loader — Mickey Malone's ────────────────────────────────────────────
+app.get('/api/procurement/demo/mickey-malones', async (req, res) => {
+  try {
+    const { rows: [restaurant] } = await pool.query(
+      `SELECT * FROM restaurants WHERE slug = 'mickey-malones-tavern' LIMIT 1`
+    );
+    if (!restaurant) return res.status(404).json({ error: 'Mickey Malone\'s not seeded yet. POST /api/procurement/demo/seed-mickey-malones' });
+
+    const [alertsRes, recsRes, snapshotRes, vendorBenchRes, priceHistRes] = await Promise.all([
+      pool.query(
+        `SELECT * FROM margin_alerts WHERE restaurant_id = $1 AND status = 'active' ORDER BY financial_impact_monthly DESC`,
+        [restaurant.id]
+      ),
+      pool.query(
+        `SELECT pr.*, ma.alert_type, ma.severity AS alert_severity
+         FROM procurement_recommendations pr
+         LEFT JOIN margin_alerts ma ON ma.id = pr.alert_id
+         WHERE pr.restaurant_id = $1 AND pr.status = 'pending'
+         ORDER BY pr.potential_monthly_savings DESC`,
+        [restaurant.id]
+      ),
+      pool.query(
+        `SELECT * FROM margin_snapshots WHERE restaurant_id = $1 ORDER BY snapshot_date DESC LIMIT 1`,
+        [restaurant.id]
+      ),
+      pool.query(
+        `SELECT i.name AS ingredient, v.name AS vendor,
+                vp.price_per_unit AS paid_price, i.current_market_price AS market_price,
+                i.unit,
+                ROUND(((vp.price_per_unit - i.current_market_price) / i.current_market_price * 100)::numeric, 1) AS overcharge_pct
+         FROM vendor_prices vp
+         JOIN vendors v ON v.id = vp.vendor_id
+         JOIN ingredients i ON i.id = vp.ingredient_id
+         WHERE v.restaurant_id = $1
+           AND vp.price_per_unit > i.current_market_price * 1.05
+         ORDER BY overcharge_pct DESC`,
+        [restaurant.id]
+      ),
+      pool.query(
+        `SELECT i.name AS ingredient, iph.price, iph.recorded_date, v.name AS vendor
+         FROM ingredient_price_history iph
+         JOIN ingredients i ON i.id = iph.ingredient_id
+         LEFT JOIN vendors v ON v.id = iph.vendor_id
+         WHERE i.restaurant_id = $1
+         ORDER BY i.name, iph.recorded_date`,
+        [restaurant.id]
+      )
+    ]);
+
+    const totalMonthlyLeakage = alertsRes.rows.reduce(
+      (sum, a) => sum + parseFloat(a.financial_impact_monthly || 0), 0
+    );
+
+    res.json({
+      restaurant,
+      snapshot: snapshotRes.rows[0] || null,
+      alerts: alertsRes.rows,
+      recommendations: recsRes.rows,
+      vendor_benchmark: vendorBenchRes.rows,
+      price_history: priceHistRes.rows,
+      summary: {
+        total_monthly_leakage: parseFloat(totalMonthlyLeakage.toFixed(2)),
+        annual_leakage: parseFloat((totalMonthlyLeakage * 12).toFixed(2)),
+        alert_count: alertsRes.rows.length,
+        recommendation_count: recsRes.rows.length,
+        acquisition_context: {
+          target: "Mickey Malone's Tavern",
+          location: '347 N Pearl St, Brockton, MA 02301',
+          annual_revenue: 852000,
+          platform_fit: ['Clover', 'Toast', 'DoorDash'],
+          untapped_delivery: 'Zero delivery presence — $8,400/mo gap at industry avg 12% delivery mix'
+        }
+      }
+    });
+  } catch (err) {
+    console.error("[Procurement] Mickey Malone's load error:", err);
+    res.status(500).json({ error: 'Failed to load Mickey Malone\'s data' });
   }
 });
 
