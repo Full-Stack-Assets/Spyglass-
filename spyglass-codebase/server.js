@@ -141,6 +141,15 @@ app.get('/api/v1/data-policy', (req, res) => {
   });
 });
 
+// Mickey Malone's public restaurant website — serve at mickeymalones.xyz
+app.use((req, res, next) => {
+  const host = (req.headers.host || '').split(':')[0];
+  if (host === 'mickeymalones.xyz' || host === 'www.mickeymalones.xyz') {
+    return res.sendFile(path.join(__dirname, 'public', 'mickeymalones.html'));
+  }
+  next();
+});
+
 // Serve static files from public folder
 app.use(express.static(path.join(__dirname, 'public')));
 

@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mickey Malone's Tavern | Brockton's Irish Sports Bar</title>
+  <meta name="description" content="Mickey Malone's Tavern — Brockton MA's favorite Irish sports bar. Award-winning clam chowder, homemade pizza, wings, and 12+ TVs for every game. 347 N Pearl St. Open daily 11:30 AM.">
+  <meta property="og:title" content="Mickey Malone's Tavern | Brockton, MA">
+  <meta property="og:description" content="Brockton's Irish sports bar. Award-winning clam chowder, homemade pizza, cold drafts, and 12+ TVs. 347 N Pearl St.">
+  <meta property="og:type" content="restaurant">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --black:   #0a0a0a;
+      --dark:    #111111;
+      --surface: #1a1a1a;
+      --card:    #212121;
+      --border:  #2e2e2e;
+      --text:    #f0ede8;
+      --muted:   #8a8278;
+      --gold:    #c9a84c;
+      --gold2:   #e8c76a;
+      --green:   #2d6a2d;
+      --green2:  #3d8f3d;
+      --red:     #8b1a1a;
+      --cream:   #f5f0e8;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--black);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    /* ── Shamrock divider ── */
+    .shamrock { color: var(--gold); font-size: 14px; letter-spacing: 6px; }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10,10,10,0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      padding: 0 5%;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 70px;
+    }
+    .nav-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.5px;
+      text-decoration: none;
+    }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a {
+      color: var(--muted); font-size: 13px; font-weight: 500;
+      text-decoration: none; letter-spacing: 0.5px; text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--gold); }
+    .nav-cta {
+      background: var(--gold); color: var(--black) !important;
+      padding: 9px 20px; border-radius: 4px; font-weight: 600 !important;
+    }
+    .nav-cta:hover { background: var(--gold2) !important; color: var(--black) !important; }
+    .nav-phone { color: var(--gold) !important; font-size: 14px !important; }
+    .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; }
+    .hamburger span { width: 24px; height: 2px; background: var(--gold); border-radius: 2px; }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      background:
+        linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.85) 100%),
+        repeating-linear-gradient(
+          135deg,
+          rgba(45,106,45,0.04) 0px, rgba(45,106,45,0.04) 1px,
+          transparent 1px, transparent 60px
+        ),
+        var(--dark);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 120px 5% 80px;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 40%, rgba(201,168,76,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-size: 12px; font-weight: 600; letter-spacing: 4px;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(48px, 8vw, 96px);
+      font-weight: 900;
+      line-height: 1.0;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .hero h1 span { color: var(--gold); }
+    .hero-sub {
+      font-size: clamp(18px, 3vw, 26px);
+      color: var(--muted);
+      font-style: italic;
+      font-family: 'Playfair Display', serif;
+      margin-bottom: 32px;
+    }
+    .hero-desc {
+      max-width: 560px;
+      font-size: 16px;
+      color: #9a948c;
+      line-height: 1.7;
+      margin-bottom: 40px;
+    }
+    .hero-btns { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+    .btn-gold {
+      background: var(--gold); color: var(--black);
+      padding: 14px 32px; border-radius: 4px;
+      font-weight: 700; font-size: 15px;
+      text-decoration: none; letter-spacing: 0.3px;
+      transition: all 0.2s;
+    }
+    .btn-gold:hover { background: var(--gold2); transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border);
+      padding: 14px 32px; border-radius: 4px;
+      font-size: 15px; text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+    .hero-badges {
+      display: flex; gap: 28px; justify-content: center; flex-wrap: wrap;
+      margin-top: 60px; padding-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+    .hero-badge { text-align: center; }
+    .hero-badge-val { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--gold); }
+    .hero-badge-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+    /* ── Section layout ── */
+    section { padding: 88px 5%; }
+    .section-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 4px;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 12px;
+    }
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 700; line-height: 1.1; margin-bottom: 16px;
+    }
+    .section-intro { color: var(--muted); font-size: 17px; max-width: 560px; line-height: 1.7; margin-bottom: 52px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    /* ── Celtic border ── */
+    .celtic-border {
+      border: 1px solid var(--border);
+      border-image: linear-gradient(135deg, var(--gold), transparent, var(--gold)) 1;
+      border-radius: 0;
+    }
+
+    /* ── About ── */
+    .about { background: var(--dark); }
+    .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+    .about-visual {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 52px 40px;
+      text-align: center;
+      position: relative;
+    }
+    .about-visual::before {
+      content: '☘';
+      position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+      background: var(--dark);
+      padding: 0 12px;
+      font-size: 24px;
+    }
+    .about-visual-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 72px; font-weight: 900;
+      background: linear-gradient(135deg, var(--gold), var(--gold2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      line-height: 1;
+    }
+    .about-visual-label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-top: 8px; }
+    .about-stat-row { display: flex; gap: 32px; margin-top: 32px; }
+    .about-stat { text-align: center; flex: 1; padding: 20px; background: var(--card); border-radius: 2px; }
+    .about-stat-n { font-size: 28px; font-weight: 700; color: var(--gold); font-family: 'Playfair Display', serif; }
+    .about-stat-l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+    .about-text p { color: var(--muted); line-height: 1.8; margin-bottom: 16px; }
+    .about-text p strong { color: var(--text); }
+    .feature-list { list-style: none; margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+    .feature-list li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--muted); }
+    .feature-list li::before { content: '✦'; color: var(--gold); flex-shrink: 0; margin-top: 2px; }
+
+    /* ── Menu ── */
+    .menu-section { background: var(--black); }
+    .menu-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 48px; overflow-x: auto; }
+    .menu-tab {
+      padding: 14px 24px; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;
+      text-transform: uppercase; cursor: pointer; color: var(--muted);
+      border-bottom: 2px solid transparent; white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .menu-tab.active { color: var(--gold); border-color: var(--gold); }
+    .menu-tab:hover { color: var(--text); }
+    .menu-panel { display: none; }
+    .menu-panel.active { display: block; }
+    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 2px; }
+    .menu-item {
+      padding: 20px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: border-color 0.15s;
+    }
+    .menu-item:hover { border-color: rgba(201,168,76,0.3); }
+    .menu-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
+    .menu-item-name { font-weight: 600; font-size: 15px; line-height: 1.3; }
+    .menu-item-price { font-size: 15px; font-weight: 700; color: var(--gold); flex-shrink: 0; }
+    .menu-item-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .menu-item-tag {
+      display: inline-flex; align-items: center;
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 2px;
+      text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px;
+    }
+    .tag-award { background: rgba(201,168,76,0.15); color: var(--gold); }
+    .tag-popular { background: rgba(45,106,45,0.2); color: #6dbf6d; }
+    .tag-new { background: rgba(139,26,26,0.2); color: #e06060; }
+    .menu-note { margin-top: 32px; padding: 16px 20px; background: var(--surface); border-left: 3px solid var(--gold); font-size: 13px; color: var(--muted); }
+
+    /* ── Hours & Location ── */
+    .info-section { background: var(--dark); }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; }
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 36px 32px;
+    }
+    .info-card-icon { font-size: 28px; margin-bottom: 16px; }
+    .info-card-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; margin-bottom: 16px; color: var(--gold); }
+    .hours-table { width: 100%; }
+    .hours-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .hours-row:last-child { border: none; }
+    .hours-day { color: var(--muted); }
+    .hours-time { color: var(--text); font-weight: 500; }
+    .hours-time.today { color: var(--gold); }
+    .info-detail { display: flex; gap: 10px; margin-bottom: 12px; font-size: 14px; }
+    .info-detail-icon { color: var(--gold); flex-shrink: 0; }
+    .info-detail-text { color: var(--muted); }
+    .info-detail-text a { color: var(--gold); text-decoration: none; }
+    .info-detail-text a:hover { text-decoration: underline; }
+    .kitchen-note { margin-top: 16px; padding: 10px 14px; background: var(--card); border-radius: 2px; font-size: 12px; color: var(--muted); }
+
+    /* ── Game Day ── */
+    .gameday { background: var(--green); position: relative; overflow: hidden; }
+    .gameday::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 40px),
+                  repeating-linear-gradient(90deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 40px);
+    }
+    .gameday .container { position: relative; }
+    .gameday-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+    .gameday .section-label { color: rgba(255,255,255,0.6); }
+    .gameday .section-title { color: white; }
+    .gameday .section-intro { color: rgba(255,255,255,0.7); }
+    .tv-count { font-family: 'Playfair Display', serif; font-size: 120px; font-weight: 900; color: rgba(255,255,255,0.12); line-height: 1; margin-bottom: -16px; }
+    .tv-label { font-size: 18px; font-weight: 700; color: white; margin-bottom: 8px; }
+    .tv-sub { font-size: 14px; color: rgba(255,255,255,0.6); }
+    .specials-list { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+    .special-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: rgba(0,0,0,0.2); border-radius: 2px; }
+    .special-name { font-weight: 600; color: white; font-size: 14px; }
+    .special-desc { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+    .special-price { font-size: 18px; font-weight: 700; color: var(--gold2); font-family: 'Playfair Display', serif; }
+
+    /* ── Reviews ── */
+    .reviews { background: var(--black); }
+    .reviews-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+    .review-card { background: var(--surface); border: 1px solid var(--border); padding: 28px; }
+    .stars { color: var(--gold); font-size: 14px; letter-spacing: 2px; margin-bottom: 12px; }
+    .review-text { font-size: 14px; color: var(--muted); line-height: 1.7; font-style: italic; margin-bottom: 16px; }
+    .review-author { font-size: 13px; font-weight: 600; color: var(--text); }
+    .review-platform { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .rating-summary { text-align: center; margin-bottom: 48px; }
+    .rating-num { font-family: 'Playfair Display', serif; font-size: 72px; font-weight: 900; color: var(--gold); line-height: 1; }
+    .rating-stars { font-size: 24px; color: var(--gold); letter-spacing: 4px; margin: 8px 0; }
+    .rating-count { font-size: 14px; color: var(--muted); }
+
+    /* ── Order / CTA ── */
+    .cta-section {
+      background: linear-gradient(135deg, var(--dark) 0%, var(--surface) 100%);
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 100px 5%;
+    }
+    .cta-section .section-title { margin: 0 auto 16px; max-width: 600px; }
+    .cta-section .section-intro { margin: 0 auto 40px; }
+    .cta-btns { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn-phone {
+      display: flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--gold);
+      border: 1px solid var(--gold);
+      padding: 14px 28px; border-radius: 4px;
+      font-size: 15px; font-weight: 600;
+      text-decoration: none; transition: all 0.2s;
+    }
+    .btn-phone:hover { background: rgba(201,168,76,0.1); }
+
+    /* ── Footer ── */
+    footer {
+      background: #050505;
+      border-top: 1px solid var(--border);
+      padding: 52px 5% 32px;
+    }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; max-width: 1200px; margin: 0 auto; }
+    .footer-brand { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--gold); margin-bottom: 12px; }
+    .footer-desc { font-size: 13px; color: var(--muted); line-height: 1.7; max-width: 300px; }
+    .footer-col h4 { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 16px; }
+    .footer-col a { display: block; color: var(--muted); font-size: 13px; margin-bottom: 8px; text-decoration: none; transition: color 0.15s; }
+    .footer-col a:hover { color: var(--text); }
+    .footer-bottom { max-width: 1200px; margin: 40px auto 0; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .footer-copy { font-size: 12px; color: var(--muted); }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .nav-links { display: none; }
+      .hamburger { display: flex; }
+      .about-grid, .gameday-grid, .info-grid, .footer-grid { grid-template-columns: 1fr; }
+      .reviews-grid { grid-template-columns: 1fr; }
+      .about-stat-row { gap: 12px; }
+      .hero-badges { gap: 16px; }
+    }
+    @media (max-width: 600px) {
+      nav { padding: 0 20px; }
+      section { padding: 64px 20px; }
+      .menu-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <a href="#" class="nav-brand">Mickey Malone's</a>
+  <div class="nav-links">
+    <a href="#menu">Menu</a>
+    <a href="#gameday">Game Day</a>
+    <a href="#hours">Hours</a>
+    <a href="#reviews">Reviews</a>
+    <a href="tel:5084276144" class="nav-phone">☎ (508) 427-6144</a>
+    <a href="#order" class="nav-cta">Order Now</a>
+  </div>
+  <div class="hamburger" onclick="toggleMobileMenu()">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero" id="home">
+  <div class="hero-eyebrow">Est. 2010 &nbsp;·&nbsp; 347 N Pearl St, Brockton MA</div>
+  <h1>Mickey<br><span>Malone's</span></h1>
+  <div class="hero-sub">Brockton's Irish Sports Bar</div>
+  <p class="hero-desc">
+    Homemade pizza, Pete's award-winning clam chowder, ice-cold drafts,
+    and 12+ screens for every game. The South Shore's best seat in the house.
+  </p>
+  <div class="hero-btns">
+    <a href="#menu" class="btn-gold">See the Menu</a>
+    <a href="tel:5084276144" class="btn-outline">☎ Call to Order</a>
+  </div>
+  <div class="hero-badges">
+    <div class="hero-badge">
+      <div class="hero-badge-val">14+</div>
+      <div class="hero-badge-label">Years Open</div>
+    </div>
+    <div class="hero-badge">
+      <div class="hero-badge-val">12+</div>
+      <div class="hero-badge-label">HD Screens</div>
+    </div>
+    <div class="hero-badge">
+      <div class="hero-badge-val">4.3★</div>
+      <div class="hero-badge-label">Yelp Rating</div>
+    </div>
+    <div class="hero-badge">
+      <div class="hero-badge-val">Award</div>
+      <div class="hero-badge-label">Winning Chowder</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── About ── -->
+<section class="about" id="about">
+  <div class="container">
+    <div class="about-grid">
+      <div class="about-visual">
+        <div class="about-visual-num">2010</div>
+        <div class="about-visual-label">Founded in Brockton</div>
+        <div class="about-stat-row">
+          <div class="about-stat">
+            <div class="about-stat-n">12+</div>
+            <div class="about-stat-l">TVs</div>
+          </div>
+          <div class="about-stat">
+            <div class="about-stat-n">60</div>
+            <div class="about-stat-l">Seats</div>
+          </div>
+          <div class="about-stat">
+            <div class="about-stat-n">186</div>
+            <div class="about-stat-l">Reviews</div>
+          </div>
+        </div>
+      </div>
+      <div class="about-text">
+        <div class="section-label">Our Story</div>
+        <h2 class="section-title">Brockton's Corner Bar, Done Right</h2>
+        <p>Since 2010, Mickey Malone's Tavern has been the South Shore's go-to for <strong>homemade food, cold pints, and every game on every screen.</strong> We're on the Stoughton line at 347 N Pearl Street — easy to find, hard to leave.</p>
+        <p>Our kitchen is built on scratch recipes. Pete's clam chowder has won awards year after year. Our pizza dough and sauce are made fresh daily, with cheese cut from 40-pound blocks. You'll taste the difference.</p>
+        <ul class="feature-list">
+          <li>Pete's multi-award-winning New England Clam Chowder</li>
+          <li>Homemade pizza — dough, sauce, and real block cheese, daily</li>
+          <li>12+ HD screens — Patriots, Bruins, Red Sox, UFC, all of it</li>
+          <li>Full kitchen until 9:45 PM, pizza & warm-ups until 11:00 PM</li>
+          <li>Ice-cold drafts and a full bar, every night</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Menu ── -->
+<section class="menu-section" id="menu">
+  <div class="container">
+    <div class="section-label">Kitchen & Bar</div>
+    <h2 class="section-title">Our Menu</h2>
+    <p class="section-intro">Everything made with care. Ask your server about daily specials and seasonal additions.</p>
+
+    <div class="menu-tabs">
+      <div class="menu-tab active" onclick="switchTab(this,'appetizers')">Appetizers</div>
+      <div class="menu-tab" onclick="switchTab(this,'soups')">Soups & Salads</div>
+      <div class="menu-tab" onclick="switchTab(this,'pizza')">Pizza</div>
+      <div class="menu-tab" onclick="switchTab(this,'sandwiches')">Sandwiches & Burgers</div>
+      <div class="menu-tab" onclick="switchTab(this,'entrees')">Entrees</div>
+      <div class="menu-tab" onclick="switchTab(this,'bar')">Bar Menu</div>
+    </div>
+
+    <!-- Appetizers -->
+    <div class="menu-panel active" id="panel-appetizers">
+      <div class="menu-grid">
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Basket O'Fries</div>
+            <div class="menu-item-price">$8.99</div>
+          </div>
+          <div class="menu-item-desc">Crispy golden fries, seasoned and served fresh.</div>
+          <span class="menu-item-tag tag-popular">Most Ordered</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Buffalo Wings</div>
+            <div class="menu-item-price">$15.99</div>
+          </div>
+          <div class="menu-item-desc">12 pieces. Classic Buffalo or ask about our rotating sauces.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Boneless Buffalo Chicken</div>
+            <div class="menu-item-price">$14.99</div>
+          </div>
+          <div class="menu-item-desc">Tender pieces of breaded chicken tossed in Buffalo sauce.</div>
+          <span class="menu-item-tag tag-popular">Fan Favorite</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Potato Skins</div>
+            <div class="menu-item-price">$11.99</div>
+          </div>
+          <div class="menu-item-desc">Loaded with cheddar, bacon, and scallions. Sour cream on the side.</div>
+          <span class="menu-item-tag tag-award">Award Winner</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Nachos Supreme</div>
+            <div class="menu-item-price">$12.99</div>
+          </div>
+          <div class="menu-item-desc">Tortilla chips, cheddar, black beans, jalapeños, sour cream, and salsa.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Stuffed Cherry Peppers</div>
+            <div class="menu-item-price">$10.99</div>
+          </div>
+          <div class="menu-item-desc">House-stuffed cherry peppers — a Malone's classic.</div>
+          <span class="menu-item-tag tag-popular">House Special</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Mozzarella Sticks</div>
+            <div class="menu-item-price">$10.99</div>
+          </div>
+          <div class="menu-item-desc">Golden-fried, served with marinara dipping sauce.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Buffalo Chicken Tenders</div>
+            <div class="menu-item-price">$14.99</div>
+          </div>
+          <div class="menu-item-desc">Hand-breaded tenders in your choice of sauce. Bleu cheese or ranch.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Soups & Salads -->
+    <div class="menu-panel" id="panel-soups">
+      <div class="menu-grid">
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">New England Clam Chowder — Cup</div>
+            <div class="menu-item-price">$5.99</div>
+          </div>
+          <div class="menu-item-desc">Pete's multi-award-winning recipe. Thick, creamy, made fresh daily.</div>
+          <span class="menu-item-tag tag-award">Award Winning</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">New England Clam Chowder — Bowl</div>
+            <div class="menu-item-price">$8.99</div>
+          </div>
+          <div class="menu-item-desc">A generous bowl of our famous chowder. The South Shore's best.</div>
+          <span class="menu-item-tag tag-award">Award Winning</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Stuffed Quahog</div>
+            <div class="menu-item-price">$7.99</div>
+          </div>
+          <div class="menu-item-desc">A New England classic. Clam-stuffed quahog shell, baked to order.</div>
+          <span class="menu-item-tag tag-popular">Local Favorite</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Wedge Salad</div>
+            <div class="menu-item-price">$14.99</div>
+          </div>
+          <div class="menu-item-desc">Iceberg wedge, blue cheese dressing, bacon, tomato, red onion.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Wedge Salad with Chicken</div>
+            <div class="menu-item-price">$18.00</div>
+          </div>
+          <div class="menu-item-desc">Our house wedge topped with grilled or crispy chicken.</div>
+          <span class="menu-item-tag tag-popular">Popular Add-On</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Garden Salad</div>
+            <div class="menu-item-price">$9.99</div>
+          </div>
+          <div class="menu-item-desc">Mixed greens, cucumber, tomato, red onion, choice of dressing.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pizza -->
+    <div class="menu-panel" id="panel-pizza">
+      <div class="menu-grid">
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Cheese Pizza</div>
+            <div class="menu-item-price">$14.99</div>
+          </div>
+          <div class="menu-item-desc">Homemade dough and scratch tomato sauce, mozzarella from 40-lb blocks.</div>
+          <span class="menu-item-tag tag-award">Made From Scratch</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Margherita Pizza</div>
+            <div class="menu-item-price">$14.99</div>
+          </div>
+          <div class="menu-item-desc">Fresh mozzarella, house tomato sauce, basil. Classic and perfect.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Pepperoni Pizza</div>
+            <div class="menu-item-price">$16.99</div>
+          </div>
+          <div class="menu-item-desc">Generous pepperoni, whole-milk mozzarella, house red sauce.</div>
+          <span class="menu-item-tag tag-popular">Most Ordered</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Buffalo Chicken Pizza</div>
+            <div class="menu-item-price">$17.99</div>
+          </div>
+          <div class="menu-item-desc">Grilled chicken, Buffalo sauce, mozzarella, red onion, drizzle of ranch.</div>
+          <span class="menu-item-tag tag-popular">Fan Favorite</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Meat Lovers Pizza</div>
+            <div class="menu-item-price">$18.99</div>
+          </div>
+          <div class="menu-item-desc">Pepperoni, sausage, bacon, ham — loaded on our scratch crust.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Veggie Pizza</div>
+            <div class="menu-item-price">$16.99</div>
+          </div>
+          <div class="menu-item-desc">Roasted peppers, mushrooms, onion, olives, tomato on house sauce.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">BBQ Chicken Pizza</div>
+            <div class="menu-item-price">$17.99</div>
+          </div>
+          <div class="menu-item-desc">Smoky BBQ sauce, grilled chicken, red onion, mozzarella, cilantro.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Build Your Own Pizza</div>
+            <div class="menu-item-price">From $14.99</div>
+          </div>
+          <div class="menu-item-desc">Start with cheese and add toppings. $1.50–$2.50 per topping.</div>
+        </div>
+      </div>
+      <div class="menu-note">
+        All pizzas made fresh to order with house-made dough, scratch red sauce, and real block mozzarella. Available for dine-in and takeout. Warm-ups and pizza available until 11:00 PM nightly.
+      </div>
+    </div>
+
+    <!-- Sandwiches & Burgers -->
+    <div class="menu-panel" id="panel-sandwiches">
+      <div class="menu-grid">
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Pub Burger</div>
+            <div class="menu-item-price">$15.99</div>
+          </div>
+          <div class="menu-item-desc">6oz beef patty, brioche bun, lettuce, tomato, onion, pickles. Add cheese $1.</div>
+          <span class="menu-item-tag tag-popular">House Favorite</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Bacon Cheeseburger</div>
+            <div class="menu-item-price">$17.99</div>
+          </div>
+          <div class="menu-item-desc">Crispy bacon, cheddar, house sauce on a toasted brioche bun.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Teriyaki Chicken Sandwich</div>
+            <div class="menu-item-price">$15.99</div>
+          </div>
+          <div class="menu-item-desc">Grilled chicken, teriyaki glaze, pineapple, provolone, brioche bun. A Malone's signature.</div>
+          <span class="menu-item-tag tag-popular">Signature</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Buffalo Chicken Sandwich</div>
+            <div class="menu-item-price">$15.99</div>
+          </div>
+          <div class="menu-item-desc">Crispy chicken, Buffalo sauce, slaw, pickles, brioche bun.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Grilled Chicken Sandwich</div>
+            <div class="menu-item-price">$14.99</div>
+          </div>
+          <div class="menu-item-desc">Herb-marinated grilled chicken, lettuce, tomato, honey mustard.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Tuna Melt</div>
+            <div class="menu-item-price">$13.99</div>
+          </div>
+          <div class="menu-item-desc">House tuna salad, provolone, toasted sourdough. A classic done right.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Club Sandwich</div>
+            <div class="menu-item-price">$14.99</div>
+          </div>
+          <div class="menu-item-desc">Turkey, ham, bacon, Swiss, lettuce, tomato on toasted white. Served with fries.</div>
+        </div>
+      </div>
+      <div class="menu-note">All sandwiches and burgers served with your choice of fries, coleslaw, or side salad.</div>
+    </div>
+
+    <!-- Entrees -->
+    <div class="menu-panel" id="panel-entrees">
+      <div class="menu-grid">
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Grilled Chicken Dinner</div>
+            <div class="menu-item-price">$18.99</div>
+          </div>
+          <div class="menu-item-desc">8oz herb-grilled chicken breast with two sides of your choice.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Baked Scallops</div>
+            <div class="menu-item-price">$24.99</div>
+          </div>
+          <div class="menu-item-desc">Sea scallops baked in herb butter, served with seasonal vegetables and rice.</div>
+          <span class="menu-item-tag tag-popular">Seafood Special</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Filet Mignon</div>
+            <div class="menu-item-price">$34.99</div>
+          </div>
+          <div class="menu-item-desc">8oz center-cut filet, cooked to order, with two sides.</div>
+          <span class="menu-item-tag tag-popular">Premium Cut</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Fish &amp; Chips</div>
+            <div class="menu-item-price">$17.99</div>
+          </div>
+          <div class="menu-item-desc">Beer-battered cod, crispy fries, coleslaw, tartar sauce.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Shepherd's Pie</div>
+            <div class="menu-item-price">$16.99</div>
+          </div>
+          <div class="menu-item-desc">Ground beef and vegetables in rich gravy, topped with mashed potatoes, baked golden.</div>
+          <span class="menu-item-tag tag-popular">Irish Classic</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Chicken Parmesan</div>
+            <div class="menu-item-price">$18.99</div>
+          </div>
+          <div class="menu-item-desc">Breaded chicken breast, marinara, mozzarella, served over penne.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar Menu -->
+    <div class="menu-panel" id="panel-bar">
+      <div class="menu-grid">
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Draft Beer</div>
+            <div class="menu-item-price">From $6</div>
+          </div>
+          <div class="menu-item-desc">Rotating taps — ask your bartender what's fresh. Pints and pitchers available.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">House Wine</div>
+            <div class="menu-item-price">$13 / glass</div>
+          </div>
+          <div class="menu-item-desc">Red, white, and rosé by the glass or bottle. Ask for our bottle list.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Pearl Street Punch</div>
+            <div class="menu-item-price">$15</div>
+          </div>
+          <div class="menu-item-desc">Vodka, cranberry, pineapple, fresh lime. Named for our street.</div>
+          <span class="menu-item-tag tag-popular">House Cocktail</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Celtic Mule</div>
+            <div class="menu-item-price">$14</div>
+          </div>
+          <div class="menu-item-desc">Jameson Irish Whiskey, ginger beer, fresh lime. Served in a copper mug.</div>
+          <span class="menu-item-tag tag-popular">Irish Spin</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Shamrock Sour</div>
+            <div class="menu-item-price">$15</div>
+          </div>
+          <div class="menu-item-desc">Jameson, fresh lemon juice, simple syrup. Bright and balanced.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Midnight Manhattan</div>
+            <div class="menu-item-price">$18</div>
+          </div>
+          <div class="menu-item-desc">Bulleit Bourbon, sweet vermouth, Angostura bitters. Stirred, not shaken.</div>
+          <span class="menu-item-tag tag-popular">Bartender's Pick</span>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Irish Coffee</div>
+            <div class="menu-item-price">$12</div>
+          </div>
+          <div class="menu-item-desc">Hot coffee, Jameson, Irish cream, topped with whipped cream.</div>
+        </div>
+        <div class="menu-item">
+          <div class="menu-item-top">
+            <div class="menu-item-name">Dublin Daydream</div>
+            <div class="menu-item-price">$16</div>
+          </div>
+          <div class="menu-item-desc">Dark rum, pineapple, peach schnapps, blue curaçao. Tropical meets Irish.</div>
+          <span class="menu-item-tag tag-new">Seasonal</span>
+        </div>
+      </div>
+      <div class="menu-note">Full bar available. Must be 21+ to purchase alcohol. Please drink responsibly.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Game Day ── -->
+<section class="gameday" id="gameday">
+  <div class="container">
+    <div class="gameday-grid">
+      <div>
+        <div class="section-label">Every Game, Every Screen</div>
+        <h2 class="section-title">The Best Seat in Brockton</h2>
+        <p class="section-intro">Patriots. Bruins. Red Sox. Celtics. UFC. Premier League. If it's on, we've got it. 12+ HD screens, no bad angles.</p>
+        <div class="specials-list">
+          <div class="special-item">
+            <div>
+              <div class="special-name">Game Day Wings Special</div>
+              <div class="special-desc">Every Sunday during NFL season</div>
+            </div>
+            <div class="special-price">Ask Us</div>
+          </div>
+          <div class="special-item">
+            <div>
+              <div class="special-name">Happy Hour Drafts</div>
+              <div class="special-desc">Mon–Fri · 4–7 PM</div>
+            </div>
+            <div class="special-price">$1 Off</div>
+          </div>
+          <div class="special-item">
+            <div>
+              <div class="special-name">Pizza & Pint Combo</div>
+              <div class="special-desc">Available nightly until 11 PM</div>
+            </div>
+            <div class="special-price">Ask Us</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div class="tv-count">12+</div>
+        <div class="tv-label">HD Screens</div>
+        <div class="tv-sub">No bad seats. No blackouts.<br>Sound on for every big game.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Hours & Location ── -->
+<section class="info-section" id="hours">
+  <div class="container">
+    <div class="section-label">Find Us</div>
+    <h2 class="section-title">Hours &amp; Location</h2>
+    <p class="section-intro">On the Stoughton line at 347 N Pearl Street — easy to find, worth the drive.</p>
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-icon">🕐</div>
+        <div class="info-card-title">Hours</div>
+        <div class="hours-table">
+          <div class="hours-row"><span class="hours-day">Monday</span><span class="hours-time">11:30 AM – 12:00 AM</span></div>
+          <div class="hours-row"><span class="hours-day">Tuesday</span><span class="hours-time">11:30 AM – 12:00 AM</span></div>
+          <div class="hours-row"><span class="hours-day">Wednesday</span><span class="hours-time">11:30 AM – 12:00 AM</span></div>
+          <div class="hours-row"><span class="hours-day">Thursday</span><span class="hours-time">11:30 AM – 12:00 AM</span></div>
+          <div class="hours-row"><span class="hours-day">Friday</span><span class="hours-time">11:30 AM – 12:00 AM</span></div>
+          <div class="hours-row"><span class="hours-day">Saturday</span><span class="hours-time">11:30 AM – 12:00 AM</span></div>
+          <div class="hours-row"><span class="hours-day">Sunday</span><span class="hours-time">12:00 PM – 12:00 AM</span></div>
+        </div>
+        <div class="kitchen-note">🍕 Full kitchen until 9:45 PM · Pizza & warm-ups until 11:00 PM</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">📍</div>
+        <div class="info-card-title">Location</div>
+        <div class="info-detail">
+          <div class="info-detail-icon">📍</div>
+          <div class="info-detail-text">347 N Pearl St<br>Brockton, MA 02301<br><small>(On the Stoughton line)</small></div>
+        </div>
+        <div class="info-detail">
+          <div class="info-detail-icon">📞</div>
+          <div class="info-detail-text"><a href="tel:5084276144">(508) 427-6144</a></div>
+        </div>
+        <div class="info-detail">
+          <div class="info-detail-icon">🌐</div>
+          <div class="info-detail-text"><a href="https://mickeymalones.xyz">mickeymalones.xyz</a></div>
+        </div>
+        <div style="margin-top:20px">
+          <a href="https://maps.google.com/?q=347+N+Pearl+St+Brockton+MA" target="_blank" class="btn-gold" style="display:inline-block;font-size:13px;padding:10px 20px">Get Directions</a>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">🍺</div>
+        <div class="info-card-title">Private Events</div>
+        <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:16px">Hosting a watch party, birthday, or corporate event? We can accommodate private groups with reserved seating, custom food & drink packages, and all screens dedicated to your event.</p>
+        <div class="info-detail">
+          <div class="info-detail-icon">📞</div>
+          <div class="info-detail-text">Call <a href="tel:5084276144">(508) 427-6144</a> to inquire</div>
+        </div>
+        <div style="margin-top:16px;padding:12px 14px;background:rgba(201,168,76,0.08);border-radius:2px;border-left:3px solid var(--gold);font-size:13px;color:var(--muted)">
+          We're dog-friendly on our outdoor patio (seasonal). Kids welcome until 9 PM.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Reviews ── -->
+<section class="reviews" id="reviews">
+  <div class="container">
+    <div class="section-label">What People Are Saying</div>
+    <h2 class="section-title">Guest Reviews</h2>
+    <div class="rating-summary">
+      <div class="rating-num">4.3</div>
+      <div class="rating-stars">★★★★½</div>
+      <div class="rating-count">186+ reviews across Yelp, TripAdvisor &amp; Google</div>
+    </div>
+    <div class="reviews-grid">
+      <div class="review-card">
+        <div class="stars">★★★★★</div>
+        <p class="review-text">"The clam chowder is legitimately the best I've had in southeastern Massachusetts. Pete's recipe is no joke — thick, creamy, loaded with clams. I come here just for that."</p>
+        <div class="review-author">Kevin M.</div>
+        <div class="review-platform">Yelp · Local Elite</div>
+      </div>
+      <div class="review-card">
+        <div class="stars">★★★★★</div>
+        <p class="review-text">"Best sports bar in Brockton. Always a great vibe for the game, TVs everywhere, and the pizza is made from scratch — you can taste it. The Buffalo wings are always perfect."</p>
+        <div class="review-author">Sarah T.</div>
+        <div class="review-platform">Google Reviews</div>
+      </div>
+      <div class="review-card">
+        <div class="stars">★★★★☆</div>
+        <p class="review-text">"Solid neighborhood bar. The teriyaki chicken sandwich is underrated — I get it every time. Great selection of drafts and the staff is always friendly. Good value for the area."</p>
+        <div class="review-author">Dave R.</div>
+        <div class="review-platform">TripAdvisor</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Order CTA ── -->
+<section class="cta-section" id="order">
+  <div class="container">
+    <div class="section-label">Hungry?</div>
+    <h2 class="section-title">Order Pickup or Dine In</h2>
+    <p class="section-intro">Call ahead for pickup — we'll have it ready. Walk-ins always welcome. Full kitchen until 9:45 PM nightly, pizza until 11.</p>
+    <div class="cta-btns">
+      <a href="tel:5084276144" class="btn-gold" style="font-size:16px;padding:16px 36px">☎ (508) 427-6144</a>
+      <a href="#menu" class="btn-outline">View Full Menu</a>
+      <a href="https://maps.google.com/?q=347+N+Pearl+St+Brockton+MA" target="_blank" class="btn-outline">Get Directions</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-brand">Mickey Malone's Tavern</div>
+      <p class="footer-desc">Brockton's Irish sports bar since 2010. Homemade food, cold drafts, and every game on every screen. Come as you are.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Navigate</h4>
+      <a href="#about">About</a>
+      <a href="#menu">Menu</a>
+      <a href="#gameday">Game Day</a>
+      <a href="#hours">Hours</a>
+      <a href="#reviews">Reviews</a>
+    </div>
+    <div class="footer-col">
+      <h4>Contact</h4>
+      <a href="tel:5084276144">(508) 427-6144</a>
+      <a href="https://maps.google.com/?q=347+N+Pearl+St+Brockton+MA" target="_blank">347 N Pearl St, Brockton MA</a>
+      <a href="https://www.facebook.com/MickeyMalonesTavern/" target="_blank">Facebook</a>
+      <a href="https://www.yelp.com/biz/mickey-malones-tavern-brockton" target="_blank">Yelp</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-copy">© 2026 Mickey Malone's Tavern · 347 N Pearl St, Brockton MA 02301 · (508) 427-6144</div>
+    <div class="footer-copy" style="display:flex;gap:16px">
+      <a href="#" style="color:var(--muted);font-size:12px;text-decoration:none">Must be 21+ to drink. Please drink responsibly.</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+function switchTab(el, panel) {
+  document.querySelectorAll('.menu-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.menu-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + panel).classList.add('active');
+}
+
+function toggleMobileMenu() {
+  const links = document.querySelector('.nav-links');
+  links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
+  links.style.flexDirection = 'column';
+  links.style.position = 'absolute';
+  links.style.top = '70px';
+  links.style.left = '0';
+  links.style.right = '0';
+  links.style.background = 'rgba(10,10,10,0.98)';
+  links.style.padding = '20px';
+  links.style.gap = '18px';
+  links.style.borderBottom = '1px solid #2e2e2e';
+}
+
+// Highlight today's hours
+const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const today = days[new Date().getDay()];
+document.querySelectorAll('.hours-row').forEach(row => {
+  if (row.querySelector('.hours-day')?.textContent === today) {
+    row.querySelector('.hours-time').classList.add('today');
+    row.style.background = 'rgba(201,168,76,0.05)';
+    row.style.borderRadius = '2px';
+    row.style.padding = '7px 6px';
+  }
+});
+
+// Smooth nav hide on scroll
+let lastY = 0;
+window.addEventListener('scroll', () => {
+  const y = window.scrollY;
+  document.querySelector('nav').style.transform = y > lastY && y > 80 ? 'translateY(-100%)' : '';
+  document.querySelector('nav').style.transition = 'transform 0.3s';
+  lastY = y;
+});
+</script>
+</body>
+</html>
