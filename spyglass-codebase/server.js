@@ -3040,10 +3040,57 @@ app.listen(port, () => {
   scheduleDailyCron();
 
   // Start headless API async scan worker
-  // Polls scans table for 'queued' jobs every 5 seconds.
-  // Handles: semantic caching, deep crawl, webhook delivery, reasoning lineage.
   startWorker(pool);
+
+  // Auto-seed demo restaurants after a short delay (tables must exist first)
+  setTimeout(() => autoSeedDemos(), 4000);
 });
+
+// ── Auto-seed demo restaurants on startup ────────────────────────────────────
+// Idempotent: checks existence before inserting. Runs after every deploy so
+// the procurement dashboard is live immediately with no manual API call.
+async function autoSeedDemos() {
+  try {
+    // Check if procurement tables exist yet (migration 012 may still be running)
+    const { rows: tableCheck } = await pool.query(`
+      SELECT 1 FROM information_schema.tables
+      WHERE table_name = 'restaurants' LIMIT 1
+    `);
+    if (tableCheck.length === 0) {
+      console.log('[AutoSeed] Procurement tables not ready yet — skipping.');
+      return;
+    }
+
+    // Harvest & Co.
+    const { rows: [existingHarvest] } = await pool.query(
+      `SELECT id FROM restaurants WHERE slug = 'harvest-and-co' LIMIT 1`
+    );
+    if (!existingHarvest) {
+      console.log('[AutoSeed] Seeding Harvest & Co. demo…');
+      const result = await seedRestaurantDemoData(pool, null);
+      console.log(`[AutoSeed] Harvest & Co. seeded — restaurant_id: ${result.restaurant_id}, leakage: $${result.total_monthly_leakage}/mo`);
+    } else {
+      console.log('[AutoSeed] Harvest & Co. already seeded — skipping.');
+    }
+
+    // Mickey Malone's Tavern
+    const { rows: [existingMM] } = await pool.query(
+      `SELECT id FROM restaurants WHERE slug = 'mickey-malones-tavern' LIMIT 1`
+    );
+    if (!existingMM) {
+      console.log("[AutoSeed] Seeding Mickey Malone's Tavern…");
+      const result = await seedMickeyMalonesData(pool, null);
+      console.log(`[AutoSeed] Mickey Malone's seeded — restaurant_id: ${result.restaurant_id}, leakage: $${result.total_monthly_leakage}/mo`);
+    } else {
+      console.log("[AutoSeed] Mickey Malone's already seeded — skipping.");
+    }
+
+    console.log('[AutoSeed] Demo restaurants ready. Visit /procurement.html');
+  } catch (err) {
+    // Non-fatal — app stays up even if seed fails
+    console.error('[AutoSeed] Seed error (non-fatal):', err.message);
+  }
+}
 
 // ============================================================
 // Simple daily cron using setInterval
