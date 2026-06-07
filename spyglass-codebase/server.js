@@ -2132,6 +2132,11 @@ const { calculateRecipeCost, runMenuEngineering } = require('./lib/recipe-costin
 const { generateProcurementBrief } = require('./lib/procurement-analyzer');
 const { seedRestaurantDemoData } = require('./lib/demo-seed-restaurant');
 const { seedMickeyMalonesData } = require('./lib/demo-seed-mickey-malones');
+const {
+  fetchVendorPriceBenchmark,
+  refreshIngredientMarketPrices,
+  fetchAreaVendors
+} = require('./lib/vendor-price-fetcher');
 
 // ── Demo: load the demo restaurant dashboard in one call ──────────────────────
 app.get('/api/procurement/demo', async (req, res) => {
@@ -2452,30 +2457,200 @@ app.post('/api/procurement/restaurants/:id/vendors', authMiddleware, async (req,
   }
 });
 
-// ── Vendor price benchmark ────────────────────────────────────────────────────
+// ── Vendor price benchmark — live market prices via USDA AMS + AI ─────────────
+// ?live=true  (default) — fetches current USDA AMS / AI-estimated market prices
+// ?live=false           — returns stored market prices from DB only
 app.get('/api/procurement/restaurants/:id/vendor-benchmark', async (req, res) => {
+  const { id } = req.params;
+  const useLive = req.query.live !== 'false';
+
   try {
-    const { rows } = await pool.query(`
+    // Pull restaurant location for geo-accurate pricing
+    const { rows: [restaurant] } = await pool.query(
+      `SELECT location, metadata FROM restaurants WHERE id = $1`, [id]
+    );
+
+    // Current vendor invoice prices from DB
+    const { rows: invoiceRows } = await pool.query(`
       SELECT
-        i.name                                          AS ingredient,
+        i.id                   AS ingredient_id,
+        i.name                 AS ingredient,
         i.unit,
-        i.current_market_price                          AS market_price,
-        jsonb_object_agg(v.name, vp.price_per_unit)    AS vendor_prices
+        i.current_market_price AS db_market_price,
+        v.name                 AS vendor,
+        vp.price_per_unit      AS paid_price,
+        vp.effective_date
       FROM ingredients i
-      JOIN vendor_prices vp   ON vp.ingredient_id = i.id
-      JOIN vendors v          ON v.id = vp.vendor_id
+      JOIN vendor_prices vp ON vp.ingredient_id = i.id
+      JOIN vendors v        ON v.id = vp.vendor_id
       WHERE i.restaurant_id = $1
         AND vp.effective_date = (
           SELECT MAX(vp2.effective_date)
-          FROM vendor_prices vp2 WHERE vp2.ingredient_id = i.id AND vp2.vendor_id = vp.vendor_id
+          FROM vendor_prices vp2
+          WHERE vp2.ingredient_id = i.id AND vp2.vendor_id = vp.vendor_id
         )
-      GROUP BY i.id, i.name, i.unit, i.current_market_price
-      ORDER BY i.category, i.name
-    `, [req.params.id]);
-    res.json({ benchmark: rows });
+      ORDER BY i.name, vp.price_per_unit DESC
+    `, [id]);
+
+    if (!useLive) {
+      // DB-only mode — group by ingredient, return stored data
+      const grouped = {};
+      for (const row of invoiceRows) {
+        if (!grouped[row.ingredient]) {
+          grouped[row.ingredient] = {
+            ingredient: row.ingredient, unit: row.unit,
+            market_price: row.db_market_price, vendors: [],
+            data_source: 'database'
+          };
+        }
+        grouped[row.ingredient].vendors.push({ vendor: row.vendor, price: row.paid_price });
+      }
+      return res.json({ benchmark: Object.values(grouped), live: false });
+    }
+
+    // Live mode — build paid-price map keyed by ingredient name
+    // (take highest vendor price per ingredient to ensure we catch the worst overcharge)
+    const paidPrices = {};
+    const monthlyQtyByIngredient = {};
+    for (const row of invoiceRows) {
+      if (!paidPrices[row.ingredient] || row.paid_price > paidPrices[row.ingredient].price) {
+        paidPrices[row.ingredient] = {
+          price: parseFloat(row.paid_price),
+          unit: row.unit,
+          vendor: row.vendor,
+          monthly_qty: monthlyQtyByIngredient[row.ingredient] || 0
+        };
+      }
+    }
+
+    // Augment monthly_qty from 90-day purchase order history
+    const { rows: poItems } = await pool.query(`
+      SELECT i.name AS ingredient, SUM(poi.quantity) / 3.0 AS monthly_qty
+      FROM purchase_order_items poi
+      JOIN ingredients i ON i.id = poi.ingredient_id
+      JOIN purchase_orders po ON po.id = poi.purchase_order_id
+      WHERE po.restaurant_id = $1
+        AND po.order_date >= CURRENT_DATE - INTERVAL '90 days'
+      GROUP BY i.name
+    `, [id]);
+    for (const { ingredient, monthly_qty } of poItems) {
+      if (paidPrices[ingredient]) paidPrices[ingredient].monthly_qty = parseFloat(monthly_qty);
+    }
+
+    // Determine region from restaurant location (default Boston MA for MA addresses)
+    const location = restaurant?.location || 'Boston, MA';
+    const region = location.match(/MA|Massachusetts/i) ? 'Boston, MA' :
+                   location.match(/TX|Texas/i) ? 'Dallas-Fort Worth, TX' : location;
+
+    const ingredientNames = Object.keys(paidPrices);
+    const liveBenchmark = await fetchVendorPriceBenchmark(ingredientNames, paidPrices, region);
+
+    // Persist live prices back to DB for future use
+    const updateOps = liveBenchmark
+      .filter(b => b.market_price && b.data_source !== 'unavailable')
+      .map(b => {
+        const ingr = invoiceRows.find(r => r.ingredient === b.ingredient);
+        if (!ingr) return null;
+        return pool.query(
+          `UPDATE ingredients SET current_market_price = $1, price_updated_at = now() WHERE id = $2`,
+          [b.market_price, ingr.ingredient_id]
+        ).catch(() => null);
+      })
+      .filter(Boolean);
+    await Promise.all(updateOps);
+
+    const total_monthly_overcharge = liveBenchmark
+      .filter(b => b.overcharge_pct > 5)
+      .reduce((sum, b) => sum + (b.monthly_overcharge || 0), 0);
+
+    res.json({
+      benchmark: liveBenchmark,
+      live: true,
+      region,
+      total_monthly_overcharge: parseFloat(total_monthly_overcharge.toFixed(2)),
+      fetched_at: new Date().toISOString(),
+      data_sources: {
+        usda_ams: liveBenchmark.filter(b => b.data_source === 'usda_ams').length,
+        ai_market_estimate: liveBenchmark.filter(b => b.data_source === 'ai_market_estimate').length,
+        unavailable: liveBenchmark.filter(b => b.data_source === 'unavailable').length
+      }
+    });
   } catch (err) {
-    console.error('[Procurement] Benchmark error:', err);
-    res.status(500).json({ error: 'Failed to fetch benchmark' });
+    console.error('[Procurement] Live benchmark error:', err);
+    res.status(500).json({ error: 'Failed to fetch live benchmark: ' + err.message });
+  }
+});
+
+// ── Area vendor discovery — real distributors near a restaurant ───────────────
+// Returns real, operating food-service distributors in the restaurant's metro area
+app.get('/api/procurement/restaurants/:id/area-vendors', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows: [restaurant] } = await pool.query(
+      `SELECT name, location, metadata FROM restaurants WHERE id = $1`, [id]
+    );
+    if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+
+    const location = restaurant.location || 'Boston, MA';
+    const categories = (req.query.categories || '').split(',').map(c => c.trim()).filter(Boolean);
+
+    const vendors = await fetchAreaVendors(location, categories);
+
+    // Cross-reference against already-registered vendors to flag gaps
+    const { rows: registered } = await pool.query(
+      `SELECT name FROM vendors WHERE restaurant_id = $1`, [id]
+    );
+    const registeredNames = registered.map(r => r.name.toLowerCase());
+
+    const annotated = vendors.map(v => ({
+      ...v,
+      already_registered: registeredNames.some(n =>
+        n.includes(v.name.toLowerCase().split(' ')[0]) ||
+        v.name.toLowerCase().includes(n.split(' ')[0])
+      )
+    }));
+
+    res.json({
+      restaurant: restaurant.name,
+      location,
+      area_vendors: annotated,
+      new_vendor_count: annotated.filter(v => !v.already_registered).length,
+      fetched_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[Procurement] Area vendors error:', err);
+    res.status(500).json({ error: 'Failed to fetch area vendors: ' + err.message });
+  }
+});
+
+// ── Live price refresh — updates ingredient market_prices from USDA/AI ────────
+app.post('/api/procurement/restaurants/:id/refresh-prices', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows: [restaurant] } = await pool.query(
+      `SELECT name FROM restaurants WHERE id = $1`, [id]
+    );
+    if (!restaurant) return res.status(404).json({ error: 'Restaurant not found' });
+
+    const result = await refreshIngredientMarketPrices(pool, id);
+
+    // Re-run margin leak detection after price refresh so alerts reflect new data
+    let leakResult = null;
+    try {
+      leakResult = await detectMarginLeaks(pool, id);
+    } catch { /* non-fatal */ }
+
+    res.json({
+      restaurant: restaurant.name,
+      price_refresh: result,
+      leak_detection: leakResult
+        ? { alerts_generated: leakResult.alerts?.length || 0 }
+        : { skipped: true },
+      refreshed_at: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[Procurement] Price refresh error:', err);
+    res.status(500).json({ error: 'Price refresh failed: ' + err.message });
   }
 });
 
